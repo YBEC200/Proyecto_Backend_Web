@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,5 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/usuarios', [UsuarioController::class, 'index']);
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
     Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
+
+    Route::get('/productos', [ProductController::class, 'index']);
+    Route::post('/productos', [ProductController::class, 'store']);
+
+    Route::get('/categorias', [CategoryController::class, 'index']);
     // Aquí puedes agregar más rutas protegidas
 });

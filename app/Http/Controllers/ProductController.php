@@ -1,0 +1,97 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Product;
+use App\Models\Category;
+
+class ProductController extends Controller
+{
+    // Listar productos con filtros
+    public function index(Request $request)
+    {
+        $query = Product::with('categoria');
+
+        if ($request->filled('nombre')) {
+            $query->where('nombre', 'like', '%' . $request->nombre . '%');
+        }
+        if ($request->filled('precio_min')) {
+            $query->where('costo_unit', '>=', $request->precio_min);
+        }
+        if ($request->filled('precio_max')) {
+            $query->where('costo_unit', '<=', $request->precio_max);
+        }
+        if ($request->filled('categoria')) {
+            $query->where('id_categoria', $request->categoria);
+        }
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        $productos = $query->get();
+
+        return response()->json($productos);
+    }
+
+    // Crear producto
+    public function store(Request $request)
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:150',
+            'descripcion' => 'nullable|string',
+            'marca' => 'nullable|string|max:100',
+            'id_categoria' => 'required|integer|exists:categoria,id',
+            'estado' => 'required|in:Agotado,Abastecido,Inactivo',
+            'costo_unit' => 'required|numeric|min:0',
+            'imagen_path' => 'nullable|string|max:255',
+            'fecha_registro' => 'nullable|date'
+        ]);
+
+        $producto = Product::create($request->all());
+
+        return response()->json(['message' => 'Producto creado correctamente', 'producto' => $producto], 201);
+    }
+
+    public function destroy($id)
+    {
+        $producto = Product::find($id);
+
+        if (!$producto) {
+            return response()->json(['message' => 'Producto no encontrado'], 404);
+        }
+
+        // Verifica si el producto tiene lotes vinculados
+        $tieneLotes = \DB::table('lote')->where('id_producto', $id)->exists();
+
+        if ($tieneLotes) {
+            return response()->json(['message' => 'No se puede eliminar el producto porque tiene lotes vinculados.'], 400);
+        }
+
+        $producto->delete();
+
+        return response()->json(['message' => 'Producto eliminado correctamente']);
+    }
+    public function update(Request $request, $id)
+    {
+        $producto = Product::find($id);
+
+        if (!$producto) {
+            return response()->json(['message' => 'Producto no encontrado'], 404);
+        }
+
+        $request->validate([
+            'nombre' => 'required|string|max:150',
+            'descripcion' => 'nullable|string',
+            'marca' => 'nullable|string|max:100',
+            'id_categoria' => 'required|integer|exists:categoria,id',
+            'estado' => 'required|in:Agotado,Abastecido,Inactivo',
+            'costo_unit' => 'required|numeric|min:0',
+            'imagen_path' => 'nullable|string|max:255'
+        ]);
+
+        $producto->update($request->all());
+
+        return response()->json(['message' => 'Producto actualizado correctamente', 'producto' => $producto]);
+    }
+}
