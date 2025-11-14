@@ -18,10 +18,18 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'nombre',
+        'correo',
+        'password_hash',
+        'rol',
+        'estado',
+        'fecha_registro'
     ];
+
+    public function getAuthPassword()
+    {
+        return $this->password_hash;
+    }   
 
     /**
      * The attributes that should be hidden for serialization.
