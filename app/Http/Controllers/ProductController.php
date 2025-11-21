@@ -74,24 +74,24 @@ class ProductController extends Controller
     }
     public function update(Request $request, $id)
     {
-        $producto = Product::find($id);
-
-        if (!$producto) {
-            return response()->json(['message' => 'Producto no encontrado'], 404);
-        }
-
-        $request->validate([
+        $validated = $request->validate([
             'nombre' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
             'marca' => 'nullable|string|max:100',
             'id_categoria' => 'required|integer|exists:categoria,id',
             'estado' => 'required|in:Agotado,Abastecido,Inactivo',
             'costo_unit' => 'required|numeric|min:0',
-            'imagen_path' => 'nullable|string|max:255'
+            'imagen_path' => 'nullable|string|max:255',
         ]);
 
-        $producto->update($request->all());
+        $producto = Product::find($id);
+        if (!$producto) {
+            return response()->json(['message' => 'Producto no encontrado'], 404);
+        }
 
-        return response()->json(['message' => 'Producto actualizado correctamente', 'producto' => $producto]);
+        $producto->fill($validated);
+        $producto->save();
+
+        return response()->json(['message' => 'Producto actualizado', 'producto' => $producto]);
     }
 }
