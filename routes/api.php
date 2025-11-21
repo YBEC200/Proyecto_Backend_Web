@@ -31,6 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/productos', [ProductController::class, 'index']);
     Route::post('/productos', [ProductController::class, 'store']);
+    Route::put('/productos/{id}', [ProductController::class, 'update']);    // <-- Asegúrate de tener esta línea
+    Route::delete('/productos/{id}', [ProductController::class, 'destroy']);
+
 
     Route::get('/categorias', [CategoryController::class, 'index']);
     // Aquí puedes agregar más rutas protegidas
