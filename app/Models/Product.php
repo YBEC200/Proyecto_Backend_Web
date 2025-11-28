@@ -10,7 +10,10 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $table = 'productos'; // Nombre de la tabla
+    // Desactivar timestamps si la tabla no tiene created_at/updated_at
+    public $timestamps = false;
+
+    protected $table = 'productos';
     protected $fillable = [
         'nombre',
         'descripcion',

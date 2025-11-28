@@ -13,20 +13,20 @@ class UsuarioController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:150',
             'correo' => 'required|email|max:150|unique:users,correo',
+            'password' => 'required|string|min:6',
             'rol' => 'required|in:Administrador,Empleado,Cliente',
+            'estado' => 'required|in:Activo,Inactivo',
         ]);
-        if (!in_array($request->rol, ['Administrador', 'Empleado', 'Cliente'])) {
-            return response()->json(['message' => 'Rol inválido'], 400);
-        }
-        if (User::where('correo', $request->correo)->exists()) {
-            return response()->json(['message' => 'El correo ya está en uso'], 400);
-        }
+
         $usuario = new User();
         $usuario->nombre = $request->nombre;
         $usuario->correo = $request->correo;
+        $usuario->password_hash = bcrypt($request->password);
         $usuario->rol = $request->rol;
-        $usuario->estado = 'Activo'; // Estado por defecto
+        $usuario->estado = $request->estado;
+        $usuario->fecha_registro = now();
         $usuario->save();
+
         return response()->json(['message' => 'Usuario creado correctamente', 'usuario' => $usuario], 201);
     }
 

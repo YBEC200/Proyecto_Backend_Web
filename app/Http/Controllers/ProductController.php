@@ -72,26 +72,31 @@ class ProductController extends Controller
 
         return response()->json(['message' => 'Producto eliminado correctamente']);
     }
+
+    // Actualizar producto
     public function update(Request $request, $id)
     {
+        // Validación
         $validated = $request->validate([
             'nombre' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
             'marca' => 'nullable|string|max:100',
             'id_categoria' => 'required|integer|exists:categoria,id',
-            'estado' => 'required|in:Agotado,Abastecido,Inactivo',
+            'estado' => 'required|in:Abastecido,Agotado,Inactivo',
             'costo_unit' => 'required|numeric|min:0',
             'imagen_path' => 'nullable|string|max:255',
         ]);
 
+        // Buscar producto
         $producto = Product::find($id);
         if (!$producto) {
             return response()->json(['message' => 'Producto no encontrado'], 404);
         }
 
+        // Actualizar
         $producto->fill($validated);
         $producto->save();
 
-        return response()->json(['message' => 'Producto actualizado', 'producto' => $producto]);
+        return response()->json(['message' => 'Producto actualizado', 'producto' => $producto], 200);
     }
 }
