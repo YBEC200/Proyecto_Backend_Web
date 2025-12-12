@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\Lote;
 
 class ProductController extends Controller
 {
@@ -55,22 +56,28 @@ class ProductController extends Controller
 
     public function destroy($id)
     {
+        // Buscar producto
         $producto = Product::find($id);
-
         if (!$producto) {
             return response()->json(['message' => 'Producto no encontrado'], 404);
         }
 
-        // Verifica si el producto tiene lotes vinculados
-        $tieneLotes = \DB::table('lote')->where('id_producto', $id)->exists();
-
+        // Verificar si tiene lotes vinculados (tabla 'lote' usa campo Id_Producto)
+        $tieneLotes = Lote::where('Id_Producto', $producto->id)->exists();
         if ($tieneLotes) {
-            return response()->json(['message' => 'No se puede eliminar el producto porque tiene lotes vinculados.'], 400);
+            return response()->json(
+                ['message' => 'No se puede eliminar el producto porque tiene lotes vinculados.'],
+                409
+            );
         }
 
-        $producto->delete();
-
-        return response()->json(['message' => 'Producto eliminado correctamente']);
+        // Eliminar producto
+        try {
+            $producto->delete();
+            return response()->json(['message' => 'Producto eliminado correctamente.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al eliminar el producto.'], 500);
+        }
     }
 
     // Actualizar producto
