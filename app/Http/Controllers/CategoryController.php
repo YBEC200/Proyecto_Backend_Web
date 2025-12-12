@@ -13,6 +13,10 @@ class CategoryController extends Controller
     public function index()
     {
         $categorias = Category::all(['id', 'nombre']);
+
+        if (empty($categorias)) {
+            return response()->json(['message' => 'No hay categorías disponibles.'], 404);
+        }
         return response()->json($categorias);
     }
 
