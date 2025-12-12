@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\LoteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -39,5 +40,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::get('/categorias', [CategoryController::class, 'index']);
+    Route::post('/categorias', [CategoryController::class, 'store']);
+    Route::put('/categorias/{id}', [CategoryController::class, 'update']);
+    Route::delete('/categorias/{id}', [CategoryController::class, 'destroy']);
+
+    Route::get('/lotes', [LoteController::class, 'index']);
+    Route::post('/lotes', [LoteController::class, 'store']);
+    Route::put('/lotes/{id}', [LoteController::class, 'update']);
+    Route::delete('/lotes/{id}', [LoteController::class, 'destroy']);
     // Aquí puedes agregar más rutas protegidas
 });
