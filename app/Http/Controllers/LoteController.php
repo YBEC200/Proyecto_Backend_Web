@@ -29,7 +29,7 @@ class LoteController extends Controller
             });
         }
 
-        $lotes = $query->orderBy('Fecha_Registro', 'desc')->get();
+        $lotes = $query->orderBy('Lote', 'desc')->get();
         return response()->json($lotes, 200);
     }
 

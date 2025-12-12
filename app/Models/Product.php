@@ -22,12 +22,25 @@ class Product extends Model
         'estado',
         'costo_unit',
         'imagen_path',
-        'fecha_registro'
+        'fecha_registro',
+        'lotes'
+    ];
+
+    protected $casts = [
+        'costo_unit' => 'float',
+        'lotes' => 'integer',
+        'fecha_registro' => 'datetime',
     ];
 
     // Relación con categoría
     public function categoria()
     {
         return $this->belongsTo(Category::class, 'id_categoria');
+    }
+
+    // Relación con lotes (tabla 'lote', PK 'Id', FK 'Id_Producto')
+    public function lotes()
+    {
+        return $this->hasMany(Lote::class, 'Id_Producto', 'id');
     }
 }
