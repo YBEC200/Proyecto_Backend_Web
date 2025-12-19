@@ -13,6 +13,10 @@ class Lote extends Model
     public $timestamps = false;
 
     protected $table = 'lote';
+    
+    protected $primaryKey = 'Id';
+    public $incrementing = true; // o false si no es autoincrement
+    protected $keyType = 'int';
 
     protected $fillable = [
         'Lote',
@@ -22,10 +26,11 @@ class Lote extends Model
         'Estado',
     ];
 
-    // Casts para tipos correctos
+    // Cast para el enum
     protected $casts = [
         'Fecha_Registro' => 'date',
         'Cantidad' => 'integer',
+        'Estado' => 'string', // Cambia a 'string' si es enum
     ];
 
     // Relación con producto

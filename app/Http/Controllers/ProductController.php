@@ -75,7 +75,9 @@ class ProductController extends Controller
         try {
             $producto->delete();
             return response()->json(['message' => 'Producto eliminado correctamente.'], 200);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\QueryException $qe) {
+            return response()->json(['message' => 'No se puede eliminar el producto porque tiene datos relacionados.'], 409);
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Error al eliminar el producto.'], 500);
         }
     }
@@ -101,9 +103,15 @@ class ProductController extends Controller
         }
 
         // Actualizar
-        $producto->fill($validated);
-        $producto->save();
+        try {
+            $producto->fill($validated);
+            $producto->save();
 
-        return response()->json(['message' => 'Producto actualizado', 'producto' => $producto], 200);
+            return response()->json(['message' => 'Producto actualizado', 'producto' => $producto], 200);
+        } catch (\Illuminate\Database\QueryException $qe) {
+            return response()->json(['message' => 'Error en la base de datos'], 500);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Error al actualizar el producto'], 500);
+        }
     }
 }
