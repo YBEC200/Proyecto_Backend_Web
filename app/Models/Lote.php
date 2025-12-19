@@ -38,4 +38,12 @@ class Lote extends Model
     {
         return $this->belongsTo(Product::class, 'Id_Producto', 'id');
     }
+
+    /**
+     * Relación: Un lote tiene muchos detalles de lote
+     */
+    public function detailLotes()
+    {
+        return $this->hasMany(DetailLote::class, 'id_lote', 'Id');
+    }
 }
