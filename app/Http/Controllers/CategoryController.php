@@ -12,11 +12,12 @@ class CategoryController extends Controller
     // Mostrar todas las categorías
     public function index()
     {
-        $categorias = Category::all(['id', 'nombre']);
+        $categorias = Category::all(['Id', 'Nombre', 'Descripcion']);
 
-        if (empty($categorias)) {
+        if ($categorias->isEmpty()) {
             return response()->json(['message' => 'No hay categorías disponibles.'], 404);
         }
+
         return response()->json($categorias);
     }
 
@@ -24,8 +25,8 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nombre' => 'required|string|max:100',
-            'descripcion' => 'nullable|string'
+            'Nombre' => 'required|string|max:100',
+            'Descripcion' => 'nullable|string'
         ]);
 
         $categoria = Category::create($request->all());
@@ -41,14 +42,20 @@ class CategoryController extends Controller
         }
 
         $validated = $request->validate([
-            'nombre' => 'required|string|max:100',
-            'descripcion' => 'nullable|string',
+            'Nombre' => 'required|string|max:100',
+            'Descripcion' => 'nullable|string',
         ]);
 
-        $categoria->fill($validated);
-        $categoria->save();
+        try {
+            $categoria->fill($validated);
+            $categoria->save();
 
-        return response()->json($categoria, 200);
+            return response()->json($categoria, 200);
+        } catch (\Illuminate\Database\QueryException $qe) {
+            return response()->json(['message' => 'Error en la base de datos al actualizar la categoría.'], 500);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Error al actualizar la categoría.'], 500);
+        }
     }
 
     // Eliminar una categoría
@@ -59,7 +66,8 @@ class CategoryController extends Controller
             return response()->json(['message' => 'Categoría no encontrada.'], 404);
         }
 
-        $tieneProductos = Product::where('id_categoria', $categoria->id)->exists();
+        // comprobar por la columna FK en la tabla productos
+        $tieneProductos = Product::where('id_categoria', $categoria->Id)->exists();
         if ($tieneProductos) {
             return response()->json(
                 ['message' => 'No se puede eliminar la categoría porque tiene productos vinculados.'],
@@ -70,7 +78,9 @@ class CategoryController extends Controller
         try {
             $categoria->delete();
             return response()->json(['message' => 'Categoría eliminada correctamente.'], 200);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\QueryException $qe) {
+            return response()->json(['message' => 'No se puede eliminar la categoría porque tiene datos relacionados.'], 409);
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Error al eliminar la categoría.'], 500);
         }
     }

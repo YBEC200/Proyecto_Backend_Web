@@ -49,6 +49,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/lotes', [LoteController::class, 'store']);
     Route::put('/lotes/{id}', [LoteController::class, 'update']);
     Route::delete('/lotes/{id}', [LoteController::class, 'destroy']);
-    // Aquí puedes agregar más rutas protegidas
-    Route::post('/ventas', [SellController::class, 'store']);
 });
