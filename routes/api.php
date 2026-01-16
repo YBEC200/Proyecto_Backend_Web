@@ -19,6 +19,11 @@ use App\Http\Controllers\SellController;
 | se le asigna el grupo de middleware "api". ¡Disfruta creando tu API!
 |
 */
+Route::get('/login', function () {
+    return response()->json([
+        'message' => 'Este endpoint solo acepta POST'
+    ], 405);
+});
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
