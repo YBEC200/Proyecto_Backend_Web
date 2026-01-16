@@ -58,10 +58,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/ventas', [SellController::class, 'index']);
     Route::post('/ventas', [SellController::class, 'store']);
-<<<<<<< HEAD
 
     Route::post('/directions', [DirectionController::class, 'store']);
 });
-=======
-});
->>>>>>> aa99f8c8fff46173800519a766e3e1ce80008958
