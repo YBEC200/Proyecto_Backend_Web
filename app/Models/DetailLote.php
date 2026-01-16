@@ -26,7 +26,7 @@ class DetailLote extends Model
      */
     public function detailSell()
     {
-        return $this->belongsTo(DetailSell::class, 'id_detalle_venta');
+        return $this->belongsTo(DetailSell::class, 'id_detalle_venta', 'id');
     }
 
     /**

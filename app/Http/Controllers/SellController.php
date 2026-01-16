@@ -15,11 +15,47 @@ use Illuminate\Support\Facades\DB;
 class SellController extends Controller
 {
     /**
-     * Obtener todas las ventas
+     * Obtener todas las ventas con filtros opcionales
+     * Query parameters:
+     * - estado: Cancelado|Entregado|Pendiente
+     * - nombre_cliente: búsqueda por nombre de usuario
+     * - fecha: YYYY-MM-DD (búsqueda por fecha exacta)
+     * - fecha_inicio: YYYY-MM-DD (rango de fechas)
+     * - fecha_fin: YYYY-MM-DD (rango de fechas)
      */
-    public function index()
+    public function index(Request $request)
     {
-        $sells = Sell::with(['user', 'direction', 'details.product', 'details.detailLotes.lote'])->get();
+        $query = Sell::with(['user', 'direction', 'details.product', 'details.detailLotes.lote']);
+
+        // Filtrar por estado
+        if ($request->has('estado') && !empty($request->estado)) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Filtrar por nombre del cliente
+        if ($request->has('nombre_cliente') && !empty($request->nombre_cliente)) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->nombre_cliente . '%')
+                  ->orWhere('correo', 'like', '%' . $request->nombre_cliente . '%');
+            });
+        }
+
+        // Filtrar por fecha exacta
+        if ($request->has('fecha') && !empty($request->fecha)) {
+            $query->whereDate('fecha', $request->fecha);
+        }
+
+        // Filtrar por rango de fechas
+        if ($request->has('fecha_inicio') && !empty($request->fecha_inicio)) {
+            $query->whereDate('fecha', '>=', $request->fecha_inicio);
+        }
+        if ($request->has('fecha_fin') && !empty($request->fecha_fin)) {
+            $query->whereDate('fecha', '<=', $request->fecha_fin);
+        }
+
+        // Ordenar por fecha descendente (más recientes primero)
+        $sells = $query->orderBy('fecha', 'desc')->get();
+
         return response()->json($sells, 200);
     }
 
@@ -38,109 +74,186 @@ class SellController extends Controller
     }
 
     /**
-     * Crear una nueva venta con detalles y descuentos de lote
+     * Crear una nueva venta
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'id_usuario' => 'required|exists:users,id',
-            'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
-            'comprobante' => 'required|in:Boleta,Factura',
-            'id_direccion' => 'nullable|exists:directions,id',
-            'ciudad' => 'nullable|string|max:100',
-            'calle' => 'nullable|string|max:255',
-            'referencia' => 'nullable|string|max:255',
-            'costo_total' => 'required|numeric|min:0',
-            'estado' => 'required|in:Cancelado,Entregado,Pendiente',
-            'details' => 'required|array|min:1',
-            'details.*.id_producto' => 'required|exists:productos,id',
-            'details.*.cantidad' => 'required|integer|min:1',
-            'details.*.costo' => 'required|numeric|min:0'
-        ]);
-
-        // Usar transacción para garantizar consistencia
-        return DB::transaction(function () use ($validated) {
-            // Validar que hay suficiente cantidad en lotes
-            foreach ($validated['details'] as $detail) {
-                $product = Product::find($detail['id_producto']);
-                $cantidadDisponible = Lote::where('Id_Producto', $detail['id_producto'])
-                    ->where('Estado', 'Disponible')
-                    ->sum('Cantidad');
-
-                if ($cantidadDisponible < $detail['cantidad']) {
-                    throw new \Exception("Producto '{$product->nombre}' no tiene suficiente cantidad disponible. Disponible: {$cantidadDisponible}, Solicitado: {$detail['cantidad']}");
-                }
-            }
-
-            // Crear dirección si se proporcionan los datos
-            $idDireccion = $validated['id_direccion'] ?? null;
-            if (!$idDireccion && ($validated['ciudad'] || $validated['calle'] || $validated['referencia'])) {
-                $direction = Direction::create([
-                    'ciudad' => $validated['ciudad'] ?? null,
-                    'calle' => $validated['calle'] ?? null,
-                    'referencia' => $validated['referencia'] ?? null
-                ]);
-                $idDireccion = $direction->id;
-            }
-
-            // Crear la venta
-            $sell = Sell::create([
-                'id_usuario' => $validated['id_usuario'],
-                'metodo_pago' => $validated['metodo_pago'],
-                'comprobante' => $validated['comprobante'],
-                'id_direccion' => $idDireccion,
-                'fecha' => now(),
-                'costo_total' => $validated['costo_total'],
-                'estado' => $validated['estado']
+        try {
+            $validated = $request->validate([
+                'id_usuario' => 'required|exists:users,id',
+                'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
+                'comprobante' => 'required|in:Boleta,Factura',
+                'id_direccion' => 'nullable|exists:direccion,id',
+                'tipo_entrega' => 'nullable|in:Envío,Recojo',
+                'costo_total' => 'required|numeric|min:0',
+                'estado' => 'required|in:Cancelado,Entregado,Pendiente',
+                'details' => 'required|array|min:1',
+                'details.*.id_producto' => 'required|exists:productos,id',
+                'details.*.cantidad' => 'required|integer|min:1',
+                'details.*.costo' => 'required|numeric|min:0'
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos',
+                'errors' => $e->errors()
+            ], 422);
+        }
 
-            // Crear detalles de venta y detalles de lote
-            foreach ($validated['details'] as $detail) {
-                $detailSell = DetailSell::create([
-                    'id_venta' => $sell->id,
-                    'id_producto' => $detail['id_producto'],
-                    'cantidad' => $detail['cantidad'],
-                    'costo' => $detail['costo']
-                ]);
-
-                // Descontar cantidad de los lotes
-                $cantidadFaltante = $detail['cantidad'];
-                $lotes = Lote::where('Id_Producto', $detail['id_producto'])
-                    ->where('Estado', 'Disponible')
-                    ->orderBy('Fecha_Registro', 'asc')
-                    ->get();
-
-                foreach ($lotes as $lote) {
-                    if ($cantidadFaltante <= 0) {
-                        break;
+        return DB::transaction(function () use ($validated) {
+            try {
+                // Validar suficiente cantidad en lotes
+                foreach ($validated['details'] as $detail) {
+                    $product = Product::find($detail['id_producto']);
+                    
+                    if (!$product) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Producto no encontrado',
+                            'code' => 'PRODUCT_NOT_FOUND'
+                        ], 404);
                     }
 
-                    $cantidadADescontar = min($cantidadFaltante, $lote->Cantidad);
+                    // 🔍 CAMBIO AQUÍ: Estado es "Activo" no "Disponible"
+                    $cantidadDisponible = Lote::where('Id_Producto', $detail['id_producto'])
+                        ->where('Estado', 'Activo')
+                        ->sum('Cantidad');
 
-                    // Crear registro en detalle_lote
-                    DetailLote::create([
-                        'id_detalle_venta' => $detailSell->id,
-                        'id_lote' => $lote->Id,
-                        'cantidad' => $cantidadADescontar
+                    \Log::info('Stock Check', [
+                        'producto_id' => $detail['id_producto'],
+                        'producto_nombre' => $product->nombre,
+                        'cantidad_solicitada' => $detail['cantidad'],
+                        'cantidad_disponible' => $cantidadDisponible,
                     ]);
 
-                    // Actualizar cantidad en el lote
-                    $lote->Cantidad -= $cantidadADescontar;
-                    
-                    // Si el lote llega a 0, cambiar estado a "Agotado"
-                    if ($lote->Cantidad <= 0) {
-                        $lote->Estado = 'Agotado';
+                    if ($cantidadDisponible < $detail['cantidad']) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Stock insuficiente",
+                            'code' => 'INSUFFICIENT_STOCK',
+                            'product_name' => $product->nombre,
+                            'requested' => $detail['cantidad'],
+                            'available' => $cantidadDisponible
+                        ], 409);
                     }
-                    
-                    $lote->save();
-                    $cantidadFaltante -= $cantidadADescontar;
                 }
-            }
 
-            return response()->json($sell->load(['user', 'direction', 'details.product', 'details.detailLotes.lote']), 201);
+                // Validar dirección si es envío
+                if ($validated['tipo_entrega'] === 'Envío' && !$validated['id_direccion']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Dirección requerida para envío a domicilio',
+                        'code' => 'MISSING_ADDRESS'
+                    ], 400);
+                }
+
+                $idDireccion = null;
+                if ($validated['tipo_entrega'] === 'Envío') {
+                    $idDireccion = $validated['id_direccion'] ?? null;
+                }
+
+                // Crear la venta
+                $sell = Sell::create([
+                    'id_usuario' => $validated['id_usuario'],
+                    'metodo_pago' => $validated['metodo_pago'],
+                    'comprobante' => $validated['comprobante'],
+                    'id_direccion' => $idDireccion,
+                    'fecha' => now(),
+                    'costo_total' => $validated['costo_total'],
+                    'estado' => $validated['estado']
+                ]);
+
+                // Crear detalles de venta y procesar lotes
+                foreach ($validated['details'] as $detail) {
+                    $detailSell = DetailSell::create([
+                        'id_venta' => $sell->id,
+                        'id_producto' => $detail['id_producto'],
+                        'cantidad' => $detail['cantidad'],
+                        'costo' => $detail['costo']
+                    ]);
+
+                    $cantidadFaltante = $detail['cantidad'];
+                    $lotes = Lote::where('Id_Producto', $detail['id_producto'])
+                        ->where('Estado', 'Activo')
+                        ->orderBy('Fecha_Registro', 'asc')
+                        ->get();
+
+                    foreach ($lotes as $lote) {
+                        if ($cantidadFaltante <= 0) {
+                            break;
+                        }
+
+                        $cantidadADescontar = min($cantidadFaltante, $lote->Cantidad);
+
+                        DetailLote::create([
+                            'id_detalle_venta' => $detailSell->id,
+                            'id_lote' => $lote->Id,
+                            'cantidad' => $cantidadADescontar
+                        ]);
+
+                        $lote->Cantidad -= $cantidadADescontar;
+                        
+                        // Si el lote llega a 0, cambiar estado a "Agotado"
+                        if ($lote->Cantidad <= 0) {
+                            $lote->Estado = 'Agotado';
+                        }
+                        
+                        $lote->save();
+                        $cantidadFaltante -= $cantidadADescontar;
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Venta creada correctamente',
+                    'data' => $sell->load(['user', 'direction', 'details.product', 'details.detailLotes.lote'])
+                ], 201);
+
+            } catch (\Exception $e) {
+                // 🔍 LOG DETALLADO DEL ERROR
+                \Log::error('Error creando venta', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                DB::rollBack();
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al procesar la venta. Por favor, contacte al administrador.',
+                    'code' => 'PROCESSING_ERROR'
+                ], 500);
+            }
         });
     }
 
+    /**
+     * Formatear errores de validación de forma amigable
+     */
+    private function formatValidationErrors($errors)
+    {
+        $formatted = [];
+        
+        foreach ($errors as $field => $messages) {
+            if (strpos($field, 'details') !== false) {
+                $formatted['products'] = 'Revise los productos seleccionados';
+            } elseif ($field === 'id_usuario') {
+                $formatted[$field] = 'Usuario inválido';
+            } elseif ($field === 'metodo_pago') {
+                $formatted[$field] = 'Método de pago inválido';
+            } elseif ($field === 'comprobante') {
+                $formatted[$field] = 'Comprobante inválido';
+            } elseif ($field === 'costo_total') {
+                $formatted[$field] = 'Costo inválido';
+            } else {
+                $formatted[$field] = 'Campo inválido';
+            }
+        }
+        
+        return $formatted;
+    }
     /**
      * Actualizar una venta
      */
@@ -156,7 +269,7 @@ class SellController extends Controller
             'id_usuario' => 'sometimes|required|exists:users,id',
             'metodo_pago' => 'sometimes|required|in:Efectivo,Tarjeta,Deposito,Yape',
             'comprobante' => 'sometimes|required|in:Boleta,Factura',
-            'id_direccion' => 'sometimes|required|exists:directions,id',
+            'id_direccion' => 'sometimes|required|exists:direccion,id',
             'costo_total' => 'sometimes|required|numeric|min:0',
             'estado' => 'sometimes|required|in:Cancelado,Entregado,Pendiente'
         ]);

@@ -28,7 +28,7 @@ class DetailSell extends Model
      */
     public function sell()
     {
-        return $this->belongsTo(Sell::class, 'id_venta');
+        return $this->belongsTo(Sell::class, 'id_venta', 'id');
     }
 
     /**
@@ -44,6 +44,6 @@ class DetailSell extends Model
      */
     public function detailLotes()
     {
-        return $this->hasMany(DetailLote::class, 'id_detalle_venta');
+        return $this->hasMany(DetailLote::class, 'id_detalle_venta', 'id');
     }
 }

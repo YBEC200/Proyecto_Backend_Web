@@ -48,5 +48,14 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'fecha_registro' => 'datetime',
     ];
+
+    /**
+     * Relación: Un usuario tiene muchas ventas
+     */
+    public function sells()
+    {
+        return $this->hasMany(Sell::class, 'id_usuario');
+    }
 }
