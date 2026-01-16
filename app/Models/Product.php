@@ -43,4 +43,9 @@ class Product extends Model
     {
         return $this->hasMany(Lote::class, 'Id_Producto', 'id');
     }
+    // ✅ RELACIÓN CON DETALLES DE VENTA
+    public function detailSells()
+    {
+        return $this->hasMany(DetailSell::class, 'id_producto', 'id');
+    }
 }

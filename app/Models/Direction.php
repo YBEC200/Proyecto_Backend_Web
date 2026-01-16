@@ -9,7 +9,7 @@ class Direction extends Model
 {
     use HasFactory;
     public $timestamps = false;
-    protected $table = 'directions';
+    protected $table = 'direccion';
 
     protected $fillable = [
         'ciudad',
@@ -22,6 +22,6 @@ class Direction extends Model
      */
     public function sells()
     {
-        return $this->hasMany(Sell::class, 'id_direccion');
+        return $this->hasMany(Sell::class, 'id_direccion', 'id');
     }
 }

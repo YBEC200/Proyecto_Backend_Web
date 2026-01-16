@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\SellController;
+use App\Http\Controllers\DirectionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,4 +53,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/ventas', [SellController::class, 'index']);
     Route::post('/ventas', [SellController::class, 'store']);
+
+    Route::post('/directions', [DirectionController::class, 'store']);
 });

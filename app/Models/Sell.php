@@ -9,7 +9,7 @@ class Sell extends Model
 {
     use HasFactory;
     public $timestamps = false;
-    protected $table = 'sells';
+    protected $table = 'ventas';
 
     protected $fillable = [
         'id_usuario',
@@ -31,7 +31,7 @@ class Sell extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'id_usuario');
+        return $this->belongsTo(User::class, 'id_usuario', 'id');
     }
 
     /**
@@ -39,7 +39,7 @@ class Sell extends Model
      */
     public function direction()
     {
-        return $this->belongsTo(Direction::class, 'id_direccion');
+        return $this->belongsTo(Direction::class, 'id_direccion', 'id');
     }
 
     /**
@@ -47,7 +47,7 @@ class Sell extends Model
      */
     public function details()
     {
-        return $this->hasMany(DetailSell::class, 'id_venta');
+        return $this->hasMany(DetailSell::class, 'id_venta', 'id');
     }
 
     /**
