@@ -20,6 +20,11 @@ use App\Http\Controllers\DirectionController;
 | se le asigna el grupo de middleware "api". ¡Disfruta creando tu API!
 |
 */
+Route::get('/login', function () {
+    return response()->json([
+        'message' => 'Este endpoint solo acepta POST'
+    ], 405);
+});
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
@@ -53,6 +58,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/ventas', [SellController::class, 'index']);
     Route::post('/ventas', [SellController::class, 'store']);
+<<<<<<< HEAD
 
     Route::post('/directions', [DirectionController::class, 'store']);
 });
+=======
+});
+>>>>>>> aa99f8c8fff46173800519a766e3e1ce80008958
