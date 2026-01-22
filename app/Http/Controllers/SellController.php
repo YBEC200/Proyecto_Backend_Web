@@ -25,7 +25,7 @@ class SellController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Sell::with(['user', 'direction', 'details.product', 'details.detailLotes.lote']);
+        $query = Sell::with(['user:id,nombre,correo,rol,estado', 'direction:id,ciudad,calle,referencia', 'details.product:id,nombre,costo_unit', 'details.detailLotes.lote:Id,Lote,Fecha_Registro,Cantidad,Estado']);
 
         // Filtrar por estado
         if ($request->has('estado') && !empty($request->estado)) {
