@@ -35,7 +35,7 @@ class Sell extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'Id_Usuario', 'Id');
+        return $this->belongsTo(User::class, 'Id_Usuario', 'id');
     }
 
     /**
