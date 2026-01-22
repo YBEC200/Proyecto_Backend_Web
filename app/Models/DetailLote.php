@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\DetailSell;
+use App\Models\Lote;
 
 class DetailLote extends Model
 {
@@ -12,13 +14,13 @@ class DetailLote extends Model
     protected $table = 'detalle_lote';
 
     protected $fillable = [
-        'id_detalle_venta',
-        'id_lote',
-        'cantidad'
+        'Id_Detalle_Venta',
+        'Id_Lote',
+        'Cantidad'
     ];
 
     protected $casts = [
-        'cantidad' => 'integer',
+        'Cantidad' => 'integer',
     ];
 
     /**
@@ -26,7 +28,7 @@ class DetailLote extends Model
      */
     public function detailSell()
     {
-        return $this->belongsTo(DetailSell::class, 'id_detalle_venta', 'id');
+        return $this->belongsTo(DetailSell::class, 'Id_Detalle_Venta', 'Id');
     }
 
     /**
@@ -34,6 +36,6 @@ class DetailLote extends Model
      */
     public function lote()
     {
-        return $this->belongsTo(Lote::class, 'id_lote', 'Id');
+        return $this->belongsTo(Lote::class, 'Id_Lote', 'Id');
     }
 }

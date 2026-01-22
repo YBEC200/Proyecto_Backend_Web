@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Sell;
+use App\Models\Product;
+use App\Models\DetailLote;
 
 class DetailSell extends Model
 {
@@ -12,15 +15,15 @@ class DetailSell extends Model
     protected $table = 'detalle_venta';
 
     protected $fillable = [
-        'id_venta',
-        'id_producto',
-        'cantidad',
-        'costo'
+        'Id_Venta',
+        'Id_Producto',
+        'Cantidad',
+        'Costo'
     ];
 
     protected $casts = [
-        'cantidad' => 'integer',
-        'costo' => 'decimal:2',
+        'Cantidad' => 'integer',
+        'Costo' => 'decimal:2',
     ];
 
     /**
@@ -28,7 +31,7 @@ class DetailSell extends Model
      */
     public function sell()
     {
-        return $this->belongsTo(Sell::class, 'id_venta', 'id');
+        return $this->belongsTo(Sell::class, 'Id_Venta', 'Id');
     }
 
     /**
@@ -36,7 +39,7 @@ class DetailSell extends Model
      */
     public function product()
     {
-        return $this->belongsTo(Product::class, 'id_producto');
+        return $this->belongsTo(Product::class, 'Id_Producto', 'Id');
     }
 
     /**
@@ -44,6 +47,6 @@ class DetailSell extends Model
      */
     public function detailLotes()
     {
-        return $this->hasMany(DetailLote::class, 'id_detalle_venta', 'id');
+        return $this->hasMany(DetailLote::class, 'Id_Detalle_Venta', 'Id');
     }
 }

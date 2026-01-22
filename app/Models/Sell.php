@@ -4,6 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\DetailSell;
+use App\Models\DetailLote;
+use App\Models\User;
+use App\Models\Direction;
 
 class Sell extends Model
 {
@@ -12,18 +16,18 @@ class Sell extends Model
     protected $table = 'ventas';
 
     protected $fillable = [
-        'id_usuario',
-        'metodo_pago',
-        'comprobante',
-        'id_direccion',
-        'fecha',
-        'costo_total',
-        'estado'
+        'Id_Usuario',
+        'Metodo_Pago',
+        'Comprobante',
+        'Id_Direccion',
+        'Fecha',
+        'Costo_Total',
+        'Estado'
     ];
 
     protected $casts = [
-        'fecha' => 'datetime',
-        'costo_total' => 'decimal:2',
+        'Fecha' => 'datetime',
+        'Costo_Total' => 'decimal:2',
     ];
 
     /**
@@ -31,7 +35,7 @@ class Sell extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'id_usuario', 'id');
+        return $this->belongsTo(User::class, 'Id_Usuario', 'Id');
     }
 
     /**
@@ -39,7 +43,7 @@ class Sell extends Model
      */
     public function direction()
     {
-        return $this->belongsTo(Direction::class, 'id_direccion', 'id');
+        return $this->belongsTo(Direction::class, 'Id_Direccion', 'Id');
     }
 
     /**
@@ -47,7 +51,7 @@ class Sell extends Model
      */
     public function details()
     {
-        return $this->hasMany(DetailSell::class, 'id_venta', 'id');
+        return $this->hasMany(DetailSell::class, 'Id_Venta', 'Id');
     }
 
     /**
@@ -58,10 +62,10 @@ class Sell extends Model
         return $this->hasManyThrough(
             DetailLote::class,
             DetailSell::class,
-            'id_venta',
-            'id_detalle_venta',
-            'id',
-            'id'
+            'Id_Venta',
+            'Id_Detalle_Venta',
+            'Id',
+            'Id'
         );
     }
 }
