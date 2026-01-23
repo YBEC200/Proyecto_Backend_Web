@@ -13,6 +13,7 @@ class Sell extends Model
 {
     use HasFactory;
     public $timestamps = false;
+    protected $primaryKey = 'Id';
     protected $table = 'ventas';
 
     protected $fillable = [

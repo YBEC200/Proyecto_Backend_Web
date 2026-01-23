@@ -155,22 +155,22 @@ class SellController extends Controller
 
                 // Crear la venta
                 $sell = Sell::create([
-                    'id_usuario' => $validated['id_usuario'],
-                    'metodo_pago' => $validated['metodo_pago'],
-                    'comprobante' => $validated['comprobante'],
-                    'id_direccion' => $idDireccion,
-                    'fecha' => $validated['fecha'],
-                    'costo_total' => $validated['costo_total'],
-                    'estado' => $validated['estado']
+                    'Id_Usuario' => $validated['id_usuario'],
+                    'Metodo_Pago' => $validated['metodo_pago'],
+                    'Comprobante' => $validated['comprobante'],
+                    'Id_Direccion' => $idDireccion,
+                    'Fecha' => $validated['fecha'],
+                    'Costo_Total' => $validated['costo_total'],
+                    'Estado' => $validated['estado']
                 ]);
 
                 // Crear detalles de venta y procesar lotes
                 foreach ($validated['details'] as $detail) {
                     $detailSell = DetailSell::create([
-                        'id_venta' => $sell->id,
-                        'id_producto' => $detail['id_producto'],
-                        'cantidad' => $detail['cantidad'],
-                        'costo' => $detail['costo']
+                        'Id_Venta' => $sell->Id,  // Cambio a mayúsculas
+                        'Id_Producto' => $detail['id_producto'],  
+                        'Cantidad' => $detail['cantidad'],  
+                        'Costo' => $detail['costo']  
                     ]);
 
                     $cantidadFaltante = $detail['cantidad'];
@@ -187,14 +187,13 @@ class SellController extends Controller
                         $cantidadADescontar = min($cantidadFaltante, $lote->Cantidad);
 
                         DetailLote::create([
-                            'id_detalle_venta' => $detailSell->id,
-                            'id_lote' => $lote->Id,
-                            'cantidad' => $cantidadADescontar
+                            'Id_Detalle_Venta' => $detailSell->Id,  // ✅ Cambiar a mayúsculas
+                            'Id_Lote' => $lote->Id,  // ✅ Cambiar a mayúsculas
+                            'Cantidad' => $cantidadADescontar  // ✅ Cambiar a mayúsculas
                         ]);
 
                         $lote->Cantidad -= $cantidadADescontar;
                         
-                        // Si el lote llega a 0, cambiar estado a "Agotado"
                         if ($lote->Cantidad <= 0) {
                             $lote->Estado = 'Agotado';
                         }
@@ -275,7 +274,16 @@ class SellController extends Controller
             'estado' => 'sometimes|required|in:Cancelado,Entregado,Pendiente'
         ]);
 
-        $sell->update($validated);
+        $mappedData = [
+            'Id_Usuario' => $validated['id_usuario'] ?? $sell->Id_Usuario,
+            'Metodo_Pago' => $validated['metodo_pago'] ?? $sell->Metodo_Pago,
+            'Comprobante' => $validated['comprobante'] ?? $sell->Comprobante,
+            'Id_Direccion' => $validated['id_direccion'] ?? $sell->Id_Direccion,
+            'Costo_Total' => $validated['costo_total'] ?? $sell->Costo_Total,
+            'Estado' => $validated['estado'] ?? $sell->Estado
+        ];
+
+        $sell->update($mappedData);
 
         return response()->json($sell->load(['user', 'direction', 'details.product', 'details.detailLotes.lote']), 200);
     }
@@ -294,14 +302,14 @@ class SellController extends Controller
         return DB::transaction(function () use ($sell, $id) {
             // Obtener todos los detalles de lote de esta venta
             $detailLotes = DetailLote::whereHas('detailSell', function ($query) use ($id) {
-                $query->where('id_venta', $id);
+                $query->where('Id_Venta', $id);
             })->get();
 
             // Devolver cantidad a los lotes
             foreach ($detailLotes as $detailLote) {
-                $lote = Lote::find($detailLote->id_lote);
+                $lote = Lote::find($detailLote->Id_Lote);
                 if ($lote) {
-                    $lote->Cantidad += $detailLote->cantidad;
+                    $lote->Cantidad += $detailLote->Cantidad;
                     
                     // Si estaba agotado y ahora tiene cantidad, cambiar a Disponible
                     if ($lote->Estado === 'Agotado' && $lote->Cantidad > 0) {
@@ -314,11 +322,11 @@ class SellController extends Controller
 
             // Eliminar detalles de lote
             DetailLote::whereHas('detailSell', function ($query) use ($id) {
-                $query->where('id_venta', $id);
+                $query->where('Id_Venta', $id);
             })->delete();
 
             // Eliminar detalles de venta
-            DetailSell::where('id_venta', $id)->delete();
+            DetailSell::where('Id_Venta', $id)->delete();
 
             // Eliminar venta
             $sell->delete();
@@ -338,7 +346,7 @@ class SellController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        $sells = Sell::where('id_usuario', $userId)
+        $sells = Sell::where('Id_Usuario', $userId)
             ->with(['direction', 'details.product', 'details.detailLotes.lote'])
             ->get();
 
@@ -388,7 +396,7 @@ class SellController extends Controller
      */
     public function getDetailsSell($id)
     {
-        $details = DetailSell::where('id_venta', $id)
+        $details = DetailSell::where('Id_Venta', $id)
             ->with(['product', 'detailLotes.lote'])
             ->get();
 

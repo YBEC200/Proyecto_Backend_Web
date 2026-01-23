@@ -12,6 +12,7 @@ class DetailSell extends Model
 {
     use HasFactory;
     public $timestamps = false;
+    protected $primaryKey = 'Id';
     protected $table = 'detalle_venta';
 
     protected $fillable = [
