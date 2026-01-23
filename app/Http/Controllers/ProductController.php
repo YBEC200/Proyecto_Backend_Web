@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Lote;
+use App\Models\DetailSell;
 
 class ProductController extends Controller
 {
@@ -114,4 +115,25 @@ class ProductController extends Controller
             return response()->json(['message' => 'Error al actualizar el producto'], 500);
         }
     }
+    public function canDelete($id)
+{
+    $producto = Product::find($id);
+    
+    if (!$producto) {
+        return response()->json(['message' => 'Producto no encontrado'], 404);
+    }
+    
+    // Verificar si tiene lotes
+    $tieneOtes = Lote::where('Id_Producto', $id)->exists();
+    
+    // Verificar si está en alguna venta (a través de detailVenta)
+    $tieneVentas = DetailSell::where('id_producto', $id)->exists();
+    
+    return response()->json([
+        'can_delete' => !$tieneOtes && !$tieneVentas,
+        'razon' => $tieneOtes 
+            ? 'producto_con_lotes' 
+            : ($tieneVentas ? 'producto_con_ventas' : null)
+    ]);
+}
 }

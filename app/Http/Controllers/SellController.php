@@ -81,6 +81,7 @@ class SellController extends Controller
         try {
             $validated = $request->validate([
                 'id_usuario' => 'required|exists:users,id',
+                'fecha' => 'required|date',
                 'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
                 'comprobante' => 'required|in:Boleta,Factura',
                 'id_direccion' => 'nullable|exists:direccion,id',
@@ -158,7 +159,7 @@ class SellController extends Controller
                     'metodo_pago' => $validated['metodo_pago'],
                     'comprobante' => $validated['comprobante'],
                     'id_direccion' => $idDireccion,
-                    'fecha' => now(),
+                    'fecha' => $validated['fecha'],
                     'costo_total' => $validated['costo_total'],
                     'estado' => $validated['estado']
                 ]);
