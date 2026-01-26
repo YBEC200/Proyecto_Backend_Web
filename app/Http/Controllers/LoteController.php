@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Lote;
 use App\Models\Product;
+use App\Models\DetailLote;
 
 class LoteController extends Controller
 {
@@ -114,6 +115,7 @@ class LoteController extends Controller
             return response()->json(['message' => 'Error al eliminar lote'], 500);
         }
     }
+
     public function canDelete($id)
     {
         $lote = Lote::find($id);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Sell;
 
 class UsuarioController extends Controller
 {
@@ -88,5 +89,21 @@ class UsuarioController extends Controller
         }
         $usuario->delete();
         return response()->json(['message' => 'Usuario eliminado correctamente']);
+    }
+
+    public function canDelete($id)
+    {
+        $usuario = User::find($id);
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        $tieneVentas = Sell::where('Id_Usuario', $id)->exists();
+
+        if ($tieneVentas) {
+            return response()->json(['can_delete' => false, 'message' => 'El usuario tiene ventas asociadas y no puede ser eliminado.'], 200);
+        } else {
+            return response()->json(['can_delete' => true, 'message' => 'El usuario puede ser eliminado.'], 200);
+        }
     }
 }

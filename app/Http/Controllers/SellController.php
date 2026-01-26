@@ -348,59 +348,46 @@ class SellController extends Controller
     }
 
     /**
-     * Obtener ventas por usuario
+     * Validar entrega mediante QR
      */
-    public function sellsByUser($userId)
+    public function validarEntregaPorQR(Request $request)
     {
-        $user = User::find($userId);
-
-        if (!$user) {
-            return response()->json(['message' => 'Usuario no encontrado'], 404);
-        }
-
-        $sells = Sell::where('Id_Usuario', $userId)
-            ->with(['direction', 'details.product', 'details.detailLotes.lote'])
-            ->get();
-
-        return response()->json($sells, 200);
-    }
-
-    /**
-     * Obtener ventas por estado
-     */
-    public function sellsByStatus($status)
-    {
-        $validStatus = ['Cancelado', 'Entregado', 'Pendiente'];
-
-        if (!in_array($status, $validStatus)) {
-            return response()->json(['message' => 'Estado inválido'], 400);
-        }
-
-        $sells = Sell::where('estado', $status)
-            ->with(['user', 'direction', 'details.product', 'details.detailLotes.lote'])
-            ->get();
-
-        return response()->json($sells, 200);
-    }
-
-    /**
-     * Actualizar estado de una venta
-     */
-    public function updateStatus(Request $request, $id)
-    {
-        $sell = Sell::find($id);
-
-        if (!$sell) {
-            return response()->json(['message' => 'Venta no encontrada'], 404);
-        }
-
         $validated = $request->validate([
-            'estado' => 'required|in:Cancelado,Entregado,Pendiente'
+            'qr_token' => 'required|string'
         ]);
 
-        $sell->update(['estado' => $validated['estado']]);
+        // Buscar venta por el token
+        $sell = Sell::where('qr_token', $validated['qr_token'])->first();
 
-        return response()->json($sell, 200);
+        if (!$sell) {
+            return response()->json([
+                'message' => 'Código QR inválido o no existe'
+            ], 404);
+        }
+
+        // Verificar estado actual
+        if ($sell->estado === 'Entregado') {
+            return response()->json([
+                'message' => 'Esta venta ya fue entregada'
+            ], 400);
+        }
+
+        if ($sell->estado === 'Cancelado') {
+            return response()->json([
+                'message' => 'Esta venta fue cancelada y no puede ser entregada'
+            ], 400);
+        }
+
+        // Actualizar estado a Entregado
+        $sell->estado = 'Entregado';
+        $sell->save();
+
+        return response()->json([
+            'message' => 'Entrega confirmada correctamente',
+            'venta_id' => $sell->id,
+            'estado' => $sell->estado,
+            'fecha_entrega' => now()
+        ], 200);
     }
 
     /**

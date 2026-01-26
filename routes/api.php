@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/usuarios', [UsuarioController::class, 'store']);
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
     Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
+    Route::get('/usuarios/{id}/can-delete', [UsuarioController::class, 'canDelete']);
 
     Route::get('/productos', [ProductController::class, 'index']);
     Route::post('/productos', [ProductController::class, 'store']);
@@ -62,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ventas/{id}', [SellController::class, 'show']);
     Route::post('/ventas', [SellController::class, 'store']);
     Route::put('/ventas/{id}', [SellController::class, 'update']);
+    Route::post('/ventas/validar-entrega', [SellController::class, 'validarEntregaPorQR']);
 
     Route::post('/directions', [DirectionController::class, 'store']);
 });
