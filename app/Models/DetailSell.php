@@ -40,7 +40,7 @@ class DetailSell extends Model
      */
     public function product()
     {
-        return $this->belongsTo(Product::class, 'Id_Producto', 'Id');
+        return $this->belongsTo(Product::class, 'Id_Producto', 'id');
     }
 
     /**
