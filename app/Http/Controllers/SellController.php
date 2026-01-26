@@ -86,7 +86,7 @@ class SellController extends Controller
                 'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
                 'comprobante' => 'required|in:Boleta,Factura',
                 'id_direccion' => 'nullable|exists:direccion,id',
-                'tipo_entrega' => 'nullable|in:Envío,Recojo',
+                'tipo_entrega' => 'required|in:Envío a Domicilio,Recojo en Tienda',
                 'costo_total' => 'required|numeric|min:0',
                 'estado' => 'required|in:Cancelado,Entregado,Pendiente',
                 'details' => 'required|array|min:1',
@@ -141,7 +141,8 @@ class SellController extends Controller
                 }
 
                 // Validar dirección si es envío
-                if ($validated['tipo_entrega'] === 'Envío' && !$validated['id_direccion']) {
+                if ($validated['tipo_entrega'] === 'Envío a Domicilio' && !$validated['id_direccion']) {
+
                     return response()->json([
                         'success' => false,
                         'message' => 'Dirección requerida para envío a domicilio',
@@ -150,7 +151,7 @@ class SellController extends Controller
                 }
 
                 $idDireccion = null;
-                if ($validated['tipo_entrega'] === 'Envío') {
+                if ($validated['tipo_entrega'] === 'Envío a Domicilio') {
                     $idDireccion = $validated['id_direccion'] ?? null;
                 }
 

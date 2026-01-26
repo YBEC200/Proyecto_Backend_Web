@@ -56,6 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/lotes', [LoteController::class, 'store']);
     Route::put('/lotes/{id}', [LoteController::class, 'update']);
     Route::delete('/lotes/{id}', [LoteController::class, 'destroy']);
+    Route::get('/lotes/{id}/can-delete', [LoteController::class, 'canDelete']);
 
     Route::get('/ventas', [SellController::class, 'index']);
     Route::get('/ventas/{id}', [SellController::class, 'show']);

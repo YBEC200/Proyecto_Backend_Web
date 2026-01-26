@@ -114,4 +114,22 @@ class LoteController extends Controller
             return response()->json(['message' => 'Error al eliminar lote'], 500);
         }
     }
+    public function canDelete($id)
+    {
+        $lote = Lote::find($id);
+        
+        if (!$lote) {
+            return response()->json([
+                'message' => 'Lote no encontrado'
+            ], 404);
+        }
+        
+        // Verificar si el lote está vinculado a alguna venta (DetailLote)
+        $tieneVentas = DetailLote::where('Id_Lote', $id)->exists();
+        
+        return response()->json([
+            'can_delete' => !$tieneVentas,
+            'razon' => $tieneVentas ? 'lote_con_ventas' : null
+        ]);
+    }
 }
