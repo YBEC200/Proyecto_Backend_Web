@@ -11,6 +11,7 @@ use App\Models\Lote;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class SellController extends Controller
 {
@@ -154,14 +155,23 @@ class SellController extends Controller
                 }
 
                 // Crear la venta
+                $qrToken = null;
+
+                if ($validated['tipo_entrega'] === 'Envío a Domicilio') {
+                    $qrToken = Str::uuid(); // token único
+                }
+
+                // Crear la venta
                 $sell = Sell::create([
-                    'Id_Usuario' => $validated['id_usuario'],
-                    'Metodo_Pago' => $validated['metodo_pago'],
-                    'Comprobante' => $validated['comprobante'],
+                    'Id_Usuario'   => $validated['id_usuario'],
+                    'Metodo_Pago'  => $validated['metodo_pago'],
+                    'Comprobante'  => $validated['comprobante'],
                     'Id_Direccion' => $idDireccion,
-                    'Fecha' => $validated['fecha'],
-                    'Costo_Total' => $validated['costo_total'],
-                    'Estado' => $validated['estado']
+                    'Fecha'        => $validated['fecha'],
+                    'Costo_Total'  => $validated['costo_total'],
+                    'Estado'       => $validated['estado'],
+                    'tipo_entrega' => $validated['tipo_entrega'],
+                    'qr_token'     => $qrToken
                 ]);
 
                 // Crear detalles de venta y procesar lotes
@@ -206,6 +216,7 @@ class SellController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Venta creada correctamente',
+                    'qr_token' => $sell->qr_token,
                     'data' => $sell->load(['user', 'direction', 'details.product', 'details.detailLotes.lote'])
                 ], 201);
 

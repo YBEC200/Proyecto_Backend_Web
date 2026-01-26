@@ -23,7 +23,9 @@ class Sell extends Model
         'Id_Direccion',
         'Fecha',
         'Costo_Total',
-        'Estado'
+        'estado',
+        'tipo_entrega',
+        'qr_token'
     ];
 
     protected $casts = [
