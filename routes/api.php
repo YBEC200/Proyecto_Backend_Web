@@ -9,6 +9,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\DirectionController;
+use App\Http\Controllers\EstadisticasController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/estadisticas/categorias-mas-vendidas', [EstadisticasController::class, 'categoriasMasVendidas']);
+    Route::get('/estadisticas/lotes-activos-por-categoria', [EstadisticasController::class, 'lotesActivosPorCategoria']);
+    Route::get('/estadisticas/ventas-mensuales', [EstadisticasController::class, 'ventasMensuales']);
+    
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
