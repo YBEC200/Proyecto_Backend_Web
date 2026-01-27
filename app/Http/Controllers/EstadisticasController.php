@@ -75,27 +75,59 @@ class EstadisticasController extends Controller
      * Query param: year (opcional, por defecto año actual)
      * Devuelve labels (meses) y data (total de ventas por mes)
      */
-    public function ventasPorMes(Request $request)
+    public function ventasPorMesYTipoEntrega(Request $request)
     {
         $year = $request->query('year', date('Y'));
 
-        $rows = DB::table('ventas')
-            ->select(DB::raw('MONTH(Fecha) as month'), DB::raw('SUM(Costo_Total) as total'))
+        // Obtener todos los tipos de entrega disponibles
+        $tiposEntrega = DB::table('ventas')
+            ->select('tipo_entrega')
+            ->distinct()
             ->whereYear('Fecha', $year)
-            ->groupBy('month')
+            ->pluck('tipo_entrega')
+            ->filter()
+            ->values();
+
+        // Para cada tipo de entrega, obtener ventas por mes
+        $rows = DB::table('ventas')
+            ->select(
+                DB::raw('MONTH(Fecha) as month'),
+                'tipo_entrega',
+                DB::raw('SUM(Costo_Total) as total')
+            )
+            ->whereYear('Fecha', $year)
+            ->groupBy('month', 'tipo_entrega')
             ->orderBy('month')
             ->get()
-            ->keyBy('month');
+            ->groupBy('tipo_entrega');
 
         $months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-        $data = [];
-        for ($m = 1; $m <= 12; $m++) {
-            $data[] = isset($rows[$m]) ? (float) $rows[$m]->total : 0.0;
+        $datasets = [];
+        $colores = ['#0d6efd', '#198754', '#ffc107', '#dc3545'];
+
+        foreach ($tiposEntrega as $index => $tipo) {
+            $data = [];
+            $tipoData = $rows->get($tipo, collect());
+            
+            for ($m = 1; $m <= 12; $m++) {
+                $valor = $tipoData->firstWhere('month', $m)?->total ?? 0.0;
+                $data[] = (float) $valor;
+            }
+
+            $datasets[] = [
+                'label' => ucfirst($tipo ?? 'Desconocido'),
+                'data' => $data,
+                'borderColor' => $colores[$index % count($colores)],
+                'backgroundColor' => str_replace(')', ', 0.1)', str_replace('rgb', 'rgba', $colores[$index % count($colores)])),
+                'borderWidth' => 2,
+                'fill' => true,
+                'tension' => 0.4,
+            ];
         }
 
         return response()->json([
             'labels' => $months,
-            'data' => $data,
+            'datasets' => $datasets,
             'year' => (int) $year,
         ]);
     }

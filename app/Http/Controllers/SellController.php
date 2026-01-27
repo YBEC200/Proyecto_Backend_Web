@@ -162,6 +162,12 @@ class SellController extends Controller
                     $qrToken = Str::uuid(); // token único
                 }
 
+                $estadoInicial = 'Pendiente';
+
+                if ($validated['tipo_entrega'] === 'Recojo en Tienda') {
+                    $estadoInicial = 'Entregado';
+                }
+
                 // Crear la venta
                 $sell = Sell::create([
                     'Id_Usuario'   => $validated['id_usuario'],
@@ -171,7 +177,7 @@ class SellController extends Controller
                     'Fecha'        => $validated['fecha'],
                     'Costo_Total'  => $validated['costo_total'],
                     'Estado'       => $validated['estado'],
-                    'tipo_entrega' => $validated['tipo_entrega'],
+                    'tipo_entrega' => $estadoInicial,
                     'qr_token'     => $qrToken
                 ]);
 

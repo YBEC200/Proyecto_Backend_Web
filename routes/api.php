@@ -32,8 +32,8 @@ Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/estadisticas/categorias-mas-vendidas', [EstadisticasController::class, 'categoriasMasVendidas']);
     Route::get('/estadisticas/lotes-activos-por-categoria', [EstadisticasController::class, 'lotesActivosPorCategoria']);
-    Route::get('/estadisticas/ventas-mensuales', [EstadisticasController::class, 'ventasMensuales']);
-    
+    Route::get('/estadisticas/ventasPorMesYTipoEntrega', [EstadisticasController::class, 'ventasPorMesYTipoEntrega']);
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
