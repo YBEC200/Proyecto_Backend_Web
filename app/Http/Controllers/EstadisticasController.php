@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\Lote;
 use App\Models\Sell;
+use App\Models\User;
 
 class EstadisticasController extends Controller
 {
@@ -131,4 +132,98 @@ class EstadisticasController extends Controller
             'year' => (int) $year,
         ]);
     }
+
+    /**
+     * Total de ventas (conteo) en un mes específico
+     * Query params: year (opcional, por defecto año actual), month (1-12, obligatorio)
+     */
+    public function totalVentasMes(Request $request, $month = null, $year = null)
+    {
+        // Acepta month/year por ruta o por query params
+        $month = $month ? (int) $month : ($request->query('month') ? (int) $request->query('month') : null);
+        if (!$month || $month < 1 || $month > 12) {
+            return response()->json(['message' => 'El parámetro month (1-12) es obligatorio'], 422);
+        }
+
+        $year = $year ? (int) $year : (int) $request->query('year', date('Y'));
+
+        $totalVentas = Sell::whereYear('Fecha', $year)
+            ->whereMonth('Fecha', $month)
+            ->count();
+
+        return response()->json([
+            'year' => (int) $year,
+            'month' => (int) $month,
+            'total_ventas' => $totalVentas,
+        ]);
+    }
+
+    /**
+     * Ganancias totales de un año específico
+     * Query param: year (opcional, por defecto año actual)
+     * Devuelve total anual y desglose mensual
+     */
+    public function gananciasAnio(Request $request, $year = null)
+    {
+        $year = $year ? (int) $year : (int) $request->query('year', date('Y'));
+
+        $totalAnual = Sell::whereYear('Fecha', $year)
+            ->sum('Costo_Total');
+
+        $mensual = DB::table('ventas')
+            ->select(DB::raw('MONTH(Fecha) as month'), DB::raw('SUM(Costo_Total) as total'))
+            ->whereYear('Fecha', $year)
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->pluck('total', 'month');
+
+        // Asegurar tener 12 valores (meses)
+        $monthlyArray = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $monthlyArray[$m] = (float) ($mensual->get($m) ?? 0.0);
+        }
+
+        return response()->json([
+            'year' => $year,
+            'total_anual' => (float) $totalAnual,
+            'mensual' => $monthlyArray,
+        ]);
+    }
+
+    /**
+     * Producto más vendido (por cantidad total vendida)
+     */
+    public function productoMasVendido()
+    {
+        $row = DB::table('detalle_venta')
+            ->join('productos', 'detalle_venta.Id_Producto', '=', 'productos.id')
+            ->select('productos.id', 'productos.nombre', DB::raw('SUM(detalle_venta.Cantidad) as total_vendido'))
+            ->groupBy('productos.id', 'productos.nombre')
+            ->orderByDesc('total_vendido')
+            ->first();
+
+        if (!$row) {
+            return response()->json(['message' => 'No hay ventas registradas'], 200);
+        }
+
+        return response()->json([
+            'product_id' => $row->id,
+            'product_name' => $row->nombre,
+            'total_vendido' => (int) $row->total_vendido,
+        ]);
+    }
+
+    /**
+     * Contador de usuarios con rol 'Cliente'
+     */
+    public function contarClientes()
+    {
+        $count = User::where('rol', 'Cliente')->count();
+        return response()->json([
+            'rol' => 'Cliente',
+            'cantidad' => $count,
+        ]);
+    }
 }
+

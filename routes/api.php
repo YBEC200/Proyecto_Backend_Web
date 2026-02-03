@@ -32,7 +32,11 @@ Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/estadisticas/categorias-mas-vendidas', [EstadisticasController::class, 'categoriasMasVendidas']);
     Route::get('/estadisticas/lotes-activos-por-categoria', [EstadisticasController::class, 'lotesActivosPorCategoria']);
-    Route::get('/estadisticas/ventasPorMesYTipoEntrega', [EstadisticasController::class, 'ventasPorMesYTipoEntrega']);
+    Route::get('/estadisticas/ventas-por-mes-y-tipo-entrega', [EstadisticasController::class, 'ventasPorMesYTipoEntrega']);
+    Route::get('/estadisticas/contar-clientes', [EstadisticasController::class, 'contarClientes']);
+    Route::get('/estadisticas/producto-mas-vendido', [EstadisticasController::class, 'productoMasVendido']);
+    Route::get('/estadisticas/ganancias-anio/{year?}', [EstadisticasController::class, 'gananciasAnio']);
+    Route::get('/estadisticas/total-ventas-mes/{month}/{year?}', [EstadisticasController::class, 'totalVentasMes']);
 
     Route::get('/user', function (Request $request) {
         return $request->user();
@@ -71,4 +75,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ventas/validar-entrega', [SellController::class, 'validarEntregaPorQR']);
 
     Route::post('/directions', [DirectionController::class, 'store']);
+    Route::post('/chat', [ChatController::class, 'chat']);
 });

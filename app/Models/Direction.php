@@ -9,6 +9,7 @@ class Direction extends Model
 {
     use HasFactory;
     public $timestamps = false;
+    protected $primaryKey = 'Id';
     protected $table = 'direccion';
 
     protected $fillable = [

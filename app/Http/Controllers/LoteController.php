@@ -82,7 +82,7 @@ class LoteController extends Controller
             'Lote'           => 'sometimes|required|string|max:80',
             'Fecha_Registro' => 'sometimes|nullable|date',
             'Cantidad'       => 'sometimes|required|integer|min:0',
-            'Estado'         => ['sometimes','required','string','in:Activo,Abastecido,Agotado,Inactivo'],
+            'Estado'         => ['sometimes','required','string','in:Activo,Inactivo'],
         ]);
 
         try {

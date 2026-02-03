@@ -12,6 +12,9 @@ class DetailLote extends Model
     use HasFactory;
     public $timestamps = false;
     protected $table = 'detalle_lote';
+    protected $primaryKey = 'Id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'Id_Detalle_Venta',
