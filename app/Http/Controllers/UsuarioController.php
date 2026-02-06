@@ -80,6 +80,32 @@ class UsuarioController extends Controller
         return response()->json($usuarios);
     }
 
+    public function show($id)
+    {
+        // Verificar que el usuario exista
+        $user = User::findOrFail($id);
+
+        $ventas = Sell::where('Id_Usuario', $user->id)
+            ->select([
+                'Id as id',
+                'Costo_Total as total',
+                'Fecha as fecha',
+                'estado',
+                'tipo_entrega'
+            ])
+            ->orderByDesc('Fecha')
+            ->get();
+
+        return response()->json([
+            'usuario' => [
+                'id' => $user->id,
+                'nombre' => $user->nombre,
+                'correo' => $user->correo,
+            ],
+            'ventas' => $ventas
+        ]);
+    }
+
     // Eliminar un usuario
     public function destroy($id)
     {

@@ -130,6 +130,19 @@ class EstadisticasController extends Controller
             'labels' => $months,
             'datasets' => $datasets,
             'year' => (int) $year,
+            'totales_por_mes' => $totalesPorMes,
+            'resumen' => [
+                // 🔹 promedio usando SIEMPRE 12 meses
+                'promedio_mensual' => round($totalAnual / 12, 2),
+
+                // 🔹 mayor ganancia entre todos los meses
+                'max_mensual' => max($totalesPorMes),
+
+                // 🔹 menor ganancia (puede ser 0)
+                'min_mensual' => min($totalesPorMes),
+
+                'total_anual' => $totalAnual,
+            ]
         ]);
     }
 

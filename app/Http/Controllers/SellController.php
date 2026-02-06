@@ -168,7 +168,6 @@ class SellController extends Controller
                     $estadoInicial = 'Entregado';
                 }
 
-                // Crear la venta
                 $sell = Sell::create([
                     'Id_Usuario'   => $validated['id_usuario'],
                     'Metodo_Pago'  => $validated['metodo_pago'],
@@ -176,8 +175,13 @@ class SellController extends Controller
                     'Id_Direccion' => $idDireccion,
                     'Fecha'        => $validated['fecha'],
                     'Costo_Total'  => $validated['costo_total'],
-                    'Estado'       => $validated['estado'],
-                    'tipo_entrega' => $estadoInicial,
+
+                    // ✅ Estado lógico de la venta
+                    'estado'       => $estadoInicial,
+
+                    // ✅ Tipo de entrega REAL
+                    'tipo_entrega' => $validated['tipo_entrega'],
+
                     'qr_token'     => $qrToken
                 ]);
 
