@@ -39,7 +39,7 @@ class Product extends Model
     }
 
     // Relación con lotes (tabla 'lote', PK 'Id', FK 'Id_Producto')
-    public function lotes()
+    public function lote()
     {
         return $this->hasMany(Lote::class, 'Id_Producto', 'id');
     }

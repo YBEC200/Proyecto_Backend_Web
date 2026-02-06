@@ -10,6 +10,8 @@ use App\Http\Controllers\LoteController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\DirectionController;
 use App\Http\Controllers\EstadisticasController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ChatDataController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,5 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ventas/validar-entrega', [SellController::class, 'validarEntregaPorQR']);
 
     Route::post('/directions', [DirectionController::class, 'store']);
+
     Route::post('/chat', [ChatController::class, 'chat']);
+    Route::get('/chat/productos', [ChatDataController::class, 'productos']);
 });

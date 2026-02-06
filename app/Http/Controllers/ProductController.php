@@ -13,7 +13,7 @@ class ProductController extends Controller
     // Listar productos con filtros
     public function index(Request $request)
     {
-        $query = Product::with('categoria');
+        $query = Product::with(['categoria', 'lote']);
 
         if ($request->filled('nombre')) {
             $query->where('nombre', 'like', '%' . $request->nombre . '%');
@@ -31,7 +31,11 @@ class ProductController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        $productos = $query->get();
+        $productos = $query->get()->map(function ($producto) {
+            $producto->categoria_nombre = $producto->categoria ? $producto->categoria->Nombre : null;
+            $producto->fecha_ultimo_lote = $producto->lote->isEmpty() ? null : $producto->lote->sortByDesc('Fecha_Registro')->first()->Fecha_Registro;
+            return $producto;
+        });
 
         return response()->json($productos);
     }
