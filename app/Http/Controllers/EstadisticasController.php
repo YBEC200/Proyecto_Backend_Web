@@ -78,18 +78,29 @@ class EstadisticasController extends Controller
      */
     public function ventasPorMesYTipoEntrega(Request $request)
     {
-        $year = $request->query('year', date('Y'));
+        $year = (int) $request->query('year', date('Y'));
 
-        // Obtener todos los tipos de entrega disponibles
+        // 🔹 Meses fijos
+        $months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1️⃣ Tipos de entrega existentes en el año
+        |--------------------------------------------------------------------------
+        */
         $tiposEntrega = DB::table('ventas')
             ->select('tipo_entrega')
-            ->distinct()
             ->whereYear('Fecha', $year)
+            ->whereNotNull('tipo_entrega')
+            ->distinct()
             ->pluck('tipo_entrega')
-            ->filter()
             ->values();
 
-        // Para cada tipo de entrega, obtener ventas por mes
+        /*
+        |--------------------------------------------------------------------------
+        | 2️⃣ Ventas agrupadas por mes y tipo_entrega
+        |--------------------------------------------------------------------------
+        */
         $rows = DB::table('ventas')
             ->select(
                 DB::raw('MONTH(Fecha) as month'),
@@ -102,45 +113,84 @@ class EstadisticasController extends Controller
             ->get()
             ->groupBy('tipo_entrega');
 
-        $months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        /*
+        |--------------------------------------------------------------------------
+        | 3️⃣ Datasets para Chart.js
+        |--------------------------------------------------------------------------
+        */
         $datasets = [];
-        $colores = ['#0d6efd', '#198754', '#ffc107', '#dc3545'];
+
+        $borderColors = [
+            'rgb(13, 110, 253)', // azul
+            'rgb(25, 135, 84)',  // verde
+            'rgb(255, 193, 7)',  // amarillo
+            'rgb(220, 53, 69)',  // rojo
+        ];
+
+        $backgroundColors = [
+            'rgba(13, 110, 253, 0.15)',
+            'rgba(25, 135, 84, 0.15)',
+            'rgba(255, 193, 7, 0.15)',
+            'rgba(220, 53, 69, 0.15)',
+        ];
 
         foreach ($tiposEntrega as $index => $tipo) {
-            $data = [];
+            $data = array_fill(0, 12, 0.0);
             $tipoData = $rows->get($tipo, collect());
-            
+
             for ($m = 1; $m <= 12; $m++) {
-                $valor = $tipoData->firstWhere('month', $m)?->total ?? 0.0;
-                $data[] = (float) $valor;
+                $data[$m - 1] = (float) ($tipoData->firstWhere('month', $m)?->total ?? 0);
             }
 
             $datasets[] = [
-                'label' => ucfirst($tipo ?? 'Desconocido'),
+                'label' => $tipo,
                 'data' => $data,
-                'borderColor' => $colores[$index % count($colores)],
-                'backgroundColor' => str_replace(')', ', 0.1)', str_replace('rgb', 'rgba', $colores[$index % count($colores)])),
+                'borderColor' => $borderColors[$index % count($borderColors)],
+                'backgroundColor' => $backgroundColors[$index % count($backgroundColors)],
                 'borderWidth' => 2,
                 'fill' => true,
                 'tension' => 0.4,
             ];
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | 4️⃣ Totales generales por mes (sin importar tipo_entrega)
+        |--------------------------------------------------------------------------
+        */
+        $totalesPorMes = array_fill(0, 12, 0.0);
+
+        $totalesRows = DB::table('ventas')
+            ->select(
+                DB::raw('MONTH(Fecha) as month'),
+                DB::raw('SUM(Costo_Total) as total')
+            )
+            ->whereYear('Fecha', $year)
+            ->groupBy('month')
+            ->get();
+
+        foreach ($totalesRows as $row) {
+            $totalesPorMes[$row->month - 1] = (float) $row->total;
+        }
+
+        $totalAnual = array_sum($totalesPorMes);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5️⃣ Respuesta final
+        |--------------------------------------------------------------------------
+        */
         return response()->json([
+            'year' => $year,
             'labels' => $months,
             'datasets' => $datasets,
-            'year' => (int) $year,
+
             'totales_por_mes' => $totalesPorMes,
+
             'resumen' => [
-                // 🔹 promedio usando SIEMPRE 12 meses
                 'promedio_mensual' => round($totalAnual / 12, 2),
-
-                // 🔹 mayor ganancia entre todos los meses
                 'max_mensual' => max($totalesPorMes),
-
-                // 🔹 menor ganancia (puede ser 0)
                 'min_mensual' => min($totalesPorMes),
-
                 'total_anual' => $totalAnual,
             ]
         ]);
