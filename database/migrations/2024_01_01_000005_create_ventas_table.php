@@ -19,7 +19,7 @@ return new class extends Migration
             $table->unsignedBigInteger('Id_Direccion')->nullable(); // Nullable porque no todas las ventas necesitan dirección
             $table->dateTime('Fecha');
             $table->decimal('Costo_Total', 10, 2)->default(0);
-            $table->enum('estado', ['Cancelado', 'Entregado', 'Pendiente'])->default('Pendiente');
+            $table->enum('estado', ['Cancelado', 'Entregado', 'Pendiente', 'En Revision'])->default('Pendiente');
             $table->enum('tipo_entrega', ['Envío a Domicilio', 'Recojo en Tienda'])->default('Recojo en Tienda');
             $table->string('qr_token', 255)->nullable();
             

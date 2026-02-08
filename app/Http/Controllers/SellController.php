@@ -415,5 +415,111 @@ class SellController extends Controller
 
         return response()->json($details, 200);
     }
+
+    /**
+     * Cancelar una venta y reabastecimiento de lotes
+     * Revierte los desuentos de stock que se hicieron al crear la venta
+     */
+    public function cancelSell(Request $request, $id)
+    {
+        $sell = Sell::find($id);
+
+        if (!$sell) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Venta no encontrada',
+                'code' => 'SALE_NOT_FOUND'
+            ], 404);
+        }
+
+        if ($sell->estado === 'Cancelado') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta venta ya fue cancelada',
+                'code' => 'ALREADY_CANCELLED'
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 🔹 Obtener todos los detalles de lote asociados a la venta
+            $detailLotes = DetailLote::whereHas('detailSell', function ($query) use ($id) {
+                $query->where('Id_Venta', $id);
+            })->with('lote')->get();
+
+            // 🔹 Reabastecer los lotes
+            foreach ($detailLotes as $detailLote) {
+
+                $lote = $detailLote->lote;
+
+                if (!$lote) {
+                    continue;
+                }
+
+                $lote->Cantidad += $detailLote->Cantidad;
+
+                if ($lote->Estado === 'Agotado' && $lote->Cantidad > 0) {
+                    $lote->Estado = 'Activo';
+                }
+
+                $lote->save();
+
+                \Log::info('Lote reabastecido por cancelación', [
+                    'Id_Lote' => $lote->Id,
+                    'Cantidad_Devuelta' => $detailLote->Cantidad,
+                    'Cantidad_Total' => $lote->Cantidad,
+                    'Estado_Lote' => $lote->Estado,
+                    'Id_Venta' => $id
+                ]);
+            }
+
+            // 🔹 Cancelar la venta
+            $sell->estado = 'Cancelado';
+            $sell->save();
+
+            DB::commit();
+
+            \Log::info('Venta cancelada correctamente', [
+                'Id_Venta' => $sell->Id,
+                'Id_Usuario' => $sell->Id_Usuario,
+                'Costo_Total' => $sell->Costo_Total,
+                'Lotes_Procesados' => $detailLotes->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta cancelada y productos reabastecidos correctamente',
+                'code' => 'SALE_CANCELLED',
+                'venta_id' => $sell->Id,
+                'estado' => $sell->estado,
+                'lotes_procesados' => $detailLotes->count(),
+                'data' => $sell->load([
+                    'user',
+                    'direction',
+                    'details.product',
+                    'details.detailLotes.lote'
+                ])
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            \Log::error('Error al cancelar venta', [
+                'Id_Venta' => $id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cancelar la venta. Contacte al administrador.',
+                'code' => 'CANCELLATION_ERROR'
+            ], 500);
+        }
+    }
+
 }
 

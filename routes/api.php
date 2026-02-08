@@ -12,6 +12,7 @@ use App\Http\Controllers\DirectionController;
 use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ChatDataController;
+use App\Http\Controllers\AlertController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,10 +76,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ventas/{id}', [SellController::class, 'show']);
     Route::post('/ventas', [SellController::class, 'store']);
     Route::put('/ventas/{id}', [SellController::class, 'update']);
+    Route::post('/ventas/{id}/cancelar', [SellController::class, 'cancelSell']);
     Route::post('/ventas/validar-entrega', [SellController::class, 'validarEntregaPorQR']);
 
     Route::post('/directions', [DirectionController::class, 'store']);
 
     Route::post('/chat', [ChatController::class, 'chat']);
     Route::get('/chat/productos', [ChatDataController::class, 'productos']);
+
+    Route::prefix('alerts')->group(function () {
+        Route::get('/', [AlertController::class, 'index']);
+        Route::get('/unread-count', [AlertController::class, 'unreadCount']);
+        Route::patch('/{id}/read', [AlertController::class, 'markAsRead']);
+        Route::patch('/read-all', [AlertController::class, 'markAllAsRead']);
+        Route::get('/total-count', [AlertController::class, 'totalCount']);
+        Route::get('/unread-index', [AlertController::class, 'unreadIndex']);
+    });
+    Route::delete('/alerts/{id}', [AlertController::class, 'destroy']);
+
 });
