@@ -13,6 +13,7 @@ use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ChatDataController;
 use App\Http\Controllers\AlertController;
+use App\Http\Controllers\ImagenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/productos/{id}', [ProductController::class, 'update']);    // <-- Asegúrate de tener esta línea
     Route::delete('/productos/{id}', [ProductController::class, 'destroy']);
     Route::get('/productos/{id}/can-delete', [ProductController::class, 'canDelete']);
+    
+    Route::post('/productos/{producto}/imagenes', [ImagenController::class, 'store']);
+    Route::get('/productos/{producto}/imagenes', [ImagenController::class, 'show']);
+    Route::delete('/imagenes-secundarias/{id}', [ImagenSecundariaController::class, 'destroy']);
 
 
     Route::get('/categorias', [CategoryController::class, 'index']);

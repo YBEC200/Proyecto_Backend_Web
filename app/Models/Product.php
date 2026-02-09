@@ -48,4 +48,8 @@ class Product extends Model
     {
         return $this->hasMany(DetailSell::class, 'id_producto', 'id');
     }
+    public function imagenes()
+    {
+        return $this->hasMany(Image::class, 'producto_id', 'id');
+    }
 }
