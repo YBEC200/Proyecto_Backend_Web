@@ -12,6 +12,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\NubeFactService;
 
 class SellController extends Controller
 {
@@ -23,10 +24,14 @@ class SellController extends Controller
      * - fecha: YYYY-MM-DD (búsqueda por fecha exacta)
      * - fecha_inicio: YYYY-MM-DD (rango de fechas)
      * - fecha_fin: YYYY-MM-DD (rango de fechas)
+     * - no se deben incluir los que tienen estado 'En Revision'
      */
     public function index(Request $request)
     {
         $query = Sell::with(['user:id,nombre,correo,rol,estado', 'direction:id,ciudad,calle,referencia', 'details.product:id,nombre,costo_unit', 'details.detailLotes.lote:Id,Lote,Fecha_Registro,Cantidad,Estado']);
+
+        // Filtrar por estado 'En Revision'
+        $query->where('estado', '!=', 'En Revision');
 
         // Filtrar por estado
         if ($request->has('estado') && !empty($request->estado)) {
@@ -61,6 +66,182 @@ class SellController extends Controller
     }
 
     /**
+     * Obtener ventas todas las ventas con Estado 'En Revision'(VENDRAN DEL APARTADO MOVIL)
+     */
+    public function ventasEnRevision()
+    {
+        $sells = Sell::with(['user:id,nombre,correo,rol,estado', 'direction:id,ciudad,calle,referencia', 'details.product:id,nombre,costo_unit', 'details.detailLotes.lote:Id,Lote,Fecha_Registro,Cantidad,Estado'])
+            ->where('estado', 'En Revision')
+            ->orderBy('fecha', 'desc')
+            ->get();
+
+        return response()->json($sells, 200);
+    }
+
+    /**
+     * Actualizar estado de venta de 'En Revision' a 'Pendiente', ya que aun no ah sudo enviada a domicilio ni recogida en tienda
+     */
+    public function aprobarVenta($id)
+    {
+        $nubeFact = app(NubeFactService::class);
+
+        $sell = Sell::with([
+            'details.product',
+            'user',
+            'direction'
+        ])->find($id);
+
+        if (!$sell) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Venta no encontrada'
+            ], 404);
+        }
+
+        if ($sell->estado !== 'En Revision') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se pueden aprobar ventas en estado En Revision'
+            ], 400);
+        }
+
+        if ($sell->codigo_unico) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La venta ya tiene comprobante emitido'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+
+        try {
+
+            /* =========================
+            1️⃣ PREPARAR DATOS
+            ========================= */
+
+            $codigoUnico = 'VENTA-' . $sell->getKey();
+
+            // 🔴 CARGA CLAVE (igual que en store)
+            $sell->load(['details.product']);
+
+            $payload = $this->buildNubeFactPayload($sell);
+
+            \Log::info('Payload enviado a NubeFact (APROBAR VENTA)', [
+                'venta_id' => $sell->Id,
+                'payload' => $payload
+            ]);
+
+            /* =========================
+            2️⃣ EMITIR COMPROBANTE
+            ========================= */
+
+            $respuesta = $nubeFact->emitirComprobante($payload);
+
+            \Log::info('Respuesta Nubefact (APROBAR VENTA)', [
+                'venta_id' => $sell->Id,
+                'respuesta' => $respuesta
+            ]);
+
+            /* =========================
+            3️⃣ GUARDAR DATOS NUBEFACT
+            ========================= */
+
+            $sell->update([
+                'codigo_unico'       => $codigoUnico,
+                'serie'              => $respuesta['data']['serie']
+                                        ?? $respuesta['serie']
+                                        ?? null,
+                'numero_comprobante' => $respuesta['data']['numero']
+                                        ?? $respuesta['numero']
+                                        ?? null,
+                'enlace_pdf'         => $respuesta['data']['enlace_del_pdf']
+                                        ?? $respuesta['enlace_del_pdf']
+                                        ?? null,
+                'nubefact_key'       => $respuesta['data']['key']
+                                        ?? $respuesta['key']
+                                        ?? null,
+                'estado'             => 'Pendiente'
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta aprobada y boleta generada correctamente',
+                'data' => $sell->fresh()->load([
+                    'user',
+                    'direction',
+                    'details.product',
+                    'details.detailLotes.lote'
+                ])
+            ], 200);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            \Log::error('Error aprobando venta y emitiendo boleta', [
+                'venta_id' => $sell->Id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al aprobar venta',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar una venta (devuelve productos a lotes)
+     */
+    public function destroy($id)
+    {
+        $sell = Sell::find($id);
+
+        if (!$sell) {
+            return response()->json(['message' => 'Venta no encontrada'], 404);
+        }
+
+        return DB::transaction(function () use ($sell, $id) {
+            // Obtener todos los detalles de lote de esta venta
+            $detailLotes = DetailLote::whereHas('detailSell', function ($query) use ($id) {
+                $query->where('Id_Venta', $id);
+            })->get();
+
+            // Devolver cantidad a los lotes
+            foreach ($detailLotes as $detailLote) {
+                $lote = Lote::find($detailLote->Id_Lote);
+                if ($lote) {
+                    $lote->Cantidad += $detailLote->Cantidad;
+                    
+                    // Si estaba agotado y ahora tiene cantidad, cambiar a Disponible
+                    if ($lote->Estado === 'Agotado' && $lote->Cantidad > 0) {
+                        $lote->Estado = 'Disponible';
+                    }
+                    
+                    $lote->save();
+                }
+            }
+
+            // Eliminar detalles de lote
+            DetailLote::whereHas('detailSell', function ($query) use ($id) {
+                $query->where('Id_Venta', $id);
+            })->delete();
+
+            // Eliminar detalles de venta
+            DetailSell::where('Id_Venta', $id)->delete();
+
+            // Eliminar venta
+            $sell->delete();
+
+            return response()->json(['message' => 'Venta eliminada correctamente. Productos devueltos a lotes.'], 200);
+        });
+    }
+
+    /**
      * Obtener una venta por ID
      */
     public function show($id)
@@ -79,21 +260,34 @@ class SellController extends Controller
      */
     public function store(Request $request)
     {
+        $nubeFact = app(NubeFactService::class);
+
         try {
             $validated = $request->validate([
                 'id_usuario' => 'required|exists:users,id',
                 'fecha' => 'required|date',
                 'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
                 'comprobante' => 'required|in:Boleta,Factura',
+                'ruc' => 'nullable|string|size:11',
                 'id_direccion' => 'nullable|exists:direccion,id',
                 'tipo_entrega' => 'required|in:Envío a Domicilio,Recojo en Tienda',
                 'costo_total' => 'required|numeric|min:0',
-                'estado' => 'required|in:Cancelado,Entregado,Pendiente',
                 'details' => 'required|array|min:1',
                 'details.*.id_producto' => 'required|exists:productos,id',
                 'details.*.cantidad' => 'required|integer|min:1',
                 'details.*.costo' => 'required|numeric|min:0'
             ]);
+
+            /* 🔴 VALIDACIÓN CRÍTICA */
+            if (
+                ($validated['comprobante'] ?? null) === 'Factura' &&
+                empty($validated['ruc'])
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El RUC es obligatorio para emitir factura'
+                ], 422);
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -102,152 +296,149 @@ class SellController extends Controller
             ], 422);
         }
 
-        return DB::transaction(function () use ($validated) {
-            try {
-                // Validar suficiente cantidad en lotes
-                foreach ($validated['details'] as $detail) {
-                    $product = Product::find($detail['id_producto']);
-                    
-                    if (!$product) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Producto no encontrado',
-                            'code' => 'PRODUCT_NOT_FOUND'
-                        ], 404);
-                    }
+        return DB::transaction(function () use ($validated, $nubeFact) {
 
-                    // 🔍 CAMBIO AQUÍ: Estado es "Activo" no "Disponible"
-                    $cantidadDisponible = Lote::where('Id_Producto', $detail['id_producto'])
-                        ->where('Estado', 'Activo')
-                        ->sum('Cantidad');
+            /* =========================
+            1️⃣ VALIDAR STOCK
+            ========================= */
+            foreach ($validated['details'] as $detail) {
 
-                    \Log::info('Stock Check', [
-                        'producto_id' => $detail['id_producto'],
-                        'producto_nombre' => $product->nombre,
-                        'cantidad_solicitada' => $detail['cantidad'],
-                        'cantidad_disponible' => $cantidadDisponible,
-                    ]);
+                $cantidadDisponible = Lote::where('Id_Producto', $detail['id_producto'])
+                    ->where('Estado', 'Activo')
+                    ->sum('Cantidad');
 
-                    if ($cantidadDisponible < $detail['cantidad']) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => "Stock insuficiente",
-                            'code' => 'INSUFFICIENT_STOCK',
-                            'product_name' => $product->nombre,
-                            'requested' => $detail['cantidad'],
-                            'available' => $cantidadDisponible
-                        ], 409);
-                    }
-                }
-
-                // Validar dirección si es envío
-                if ($validated['tipo_entrega'] === 'Envío a Domicilio' && !$validated['id_direccion']) {
-
+                if ($cantidadDisponible < $detail['cantidad']) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Dirección requerida para envío a domicilio',
-                        'code' => 'MISSING_ADDRESS'
-                    ], 400);
+                        'message' => 'Stock insuficiente',
+                        'producto_id' => $detail['id_producto'],
+                        'requested' => $detail['cantidad'],
+                        'available' => $cantidadDisponible
+                    ], 409);
                 }
+            }
 
-                $idDireccion = null;
-                if ($validated['tipo_entrega'] === 'Envío a Domicilio') {
-                    $idDireccion = $validated['id_direccion'] ?? null;
-                }
-
-                // Crear la venta
-                $qrToken = null;
-
-                if ($validated['tipo_entrega'] === 'Envío a Domicilio') {
-                    $qrToken = Str::uuid(); // token único
-                }
-
-                $estadoInicial = 'Pendiente';
-
-                if ($validated['tipo_entrega'] === 'Recojo en Tienda') {
-                    $estadoInicial = 'Entregado';
-                }
-
-                $sell = Sell::create([
-                    'Id_Usuario'   => $validated['id_usuario'],
-                    'Metodo_Pago'  => $validated['metodo_pago'],
-                    'Comprobante'  => $validated['comprobante'],
-                    'Id_Direccion' => $idDireccion,
-                    'Fecha'        => $validated['fecha'],
-                    'Costo_Total'  => $validated['costo_total'],
-
-                    // ✅ Estado lógico de la venta
-                    'estado'       => $estadoInicial,
-
-                    // ✅ Tipo de entrega REAL
-                    'tipo_entrega' => $validated['tipo_entrega'],
-
-                    'qr_token'     => $qrToken
-                ]);
-
-                // Crear detalles de venta y procesar lotes
-                foreach ($validated['details'] as $detail) {
-                    $detailSell = DetailSell::create([
-                        'Id_Venta' => $sell->Id,  // Cambio a mayúsculas
-                        'Id_Producto' => $detail['id_producto'],  
-                        'Cantidad' => $detail['cantidad'],  
-                        'Costo' => $detail['costo']  
-                    ]);
-
-                    $cantidadFaltante = $detail['cantidad'];
-                    $lotes = Lote::where('Id_Producto', $detail['id_producto'])
-                        ->where('Estado', 'Activo')
-                        ->orderBy('Fecha_Registro', 'asc')
-                        ->get();
-
-                    foreach ($lotes as $lote) {
-                        if ($cantidadFaltante <= 0) {
-                            break;
-                        }
-
-                        $cantidadADescontar = min($cantidadFaltante, $lote->Cantidad);
-
-                        DetailLote::create([
-                            'Id_Detalle_Venta' => $detailSell->Id,  // ✅ Cambiar a mayúsculas
-                            'Id_Lote' => $lote->Id,  // ✅ Cambiar a mayúsculas
-                            'Cantidad' => $cantidadADescontar  // ✅ Cambiar a mayúsculas
-                        ]);
-
-                        $lote->Cantidad -= $cantidadADescontar;
-                        
-                        if ($lote->Cantidad <= 0) {
-                            $lote->Estado = 'Agotado';
-                        }
-                        
-                        $lote->save();
-                        $cantidadFaltante -= $cantidadADescontar;
-                    }
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Venta creada correctamente',
-                    'qr_token' => $sell->qr_token,
-                    'data' => $sell->load(['user', 'direction', 'details.product', 'details.detailLotes.lote'])
-                ], 201);
-
-            } catch (\Exception $e) {
-                // 🔍 LOG DETALLADO DEL ERROR
-                \Log::error('Error creando venta', [
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-
-                DB::rollBack();
-                
+            /* =========================
+            2️⃣ VALIDAR DIRECCIÓN
+            ========================= */
+            if (
+                $validated['tipo_entrega'] === 'Envío a Domicilio' &&
+                empty($validated['id_direccion'])
+            ) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al procesar la venta. Por favor, contacte al administrador.',
-                    'code' => 'PROCESSING_ERROR'
-                ], 500);
+                    'message' => 'Dirección requerida para envío'
+                ], 400);
             }
+
+            /* =========================
+            3️⃣ CREAR VENTA
+            ========================= */
+            $sell = Sell::create([
+                'Id_Usuario'   => $validated['id_usuario'],
+                'Metodo_Pago'  => $validated['metodo_pago'],
+                'Comprobante'  => $validated['comprobante'],
+                'RUC'          => $validated['ruc'] ?? null,
+                'Id_Direccion' => $validated['id_direccion'] ?? null,
+                'Fecha'        => $validated['fecha'],
+                'Costo_Total'  => $validated['costo_total'],
+                'estado'       => $validated['tipo_entrega'] === 'Recojo en Tienda'
+                                    ? 'Entregado'
+                                    : 'Pendiente',
+                'tipo_entrega' => $validated['tipo_entrega'],
+                'qr_token'     => $validated['tipo_entrega'] === 'Envío a Domicilio'
+                                    ? \Str::uuid()
+                                    : null,
+            ]);
+            /* =========================
+            4️⃣ DETALLES + LOTES
+            ========================= */
+            foreach ($validated['details'] as $detail) {
+
+                $detailSell = DetailSell::create([
+                    'Id_Venta'    => $sell->Id,
+                    'Id_Producto' => $detail['id_producto'],
+                    'Cantidad'    => $detail['cantidad'],
+                    'Costo'       => $detail['costo']
+                ]);
+
+                $cantidadFaltante = $detail['cantidad'];
+
+                $lotes = Lote::where('Id_Producto', $detail['id_producto'])
+                    ->where('Estado', 'Activo')
+                    ->orderBy('Fecha_Registro')
+                    ->get();
+
+                foreach ($lotes as $lote) {
+
+                    if ($cantidadFaltante <= 0) break;
+
+                    $descontar = min($cantidadFaltante, $lote->Cantidad);
+
+                    DetailLote::create([
+                        'Id_Detalle_Venta' => $detailSell->Id,
+                        'Id_Lote' => $lote->Id,
+                        'Cantidad' => $descontar
+                    ]);
+
+                    $lote->Cantidad -= $descontar;
+                    if ($lote->Cantidad <= 0) {
+                        $lote->Estado = 'Inactivo';
+                    }
+                    $lote->save();
+
+                    $cantidadFaltante -= $descontar;
+                }
+            }
+
+            /* =========================
+            5️⃣ EMITIR COMPROBANTE (NUBEFACT)
+            ========================= */
+            $sell->refresh();
+            $codigoUnico = 'VENTA-' . $sell->getKey();
+            try {
+
+                // 🔴 CLAVE
+                $sell->load(['details.product']);
+
+                $payload = $this->buildNubeFactPayload($sell);
+
+                \Log::info('Payload enviado a NubeFact', $payload);
+
+                $respuesta = $nubeFact->emitirComprobante($payload);
+                \Log::info('RESPUESTA NUBEFACT', $respuesta);
+
+                $sell->update([
+                    'codigo_unico'       => $codigoUnico,
+                    'serie'              => $respuesta['data']['serie'] ?? $respuesta['serie'] ?? null,
+                    'numero_comprobante' => $respuesta['data']['numero'] ?? $respuesta['numero'] ?? null,
+                    'enlace_pdf'         => $respuesta['data']['enlace_del_pdf'] ?? $respuesta['enlace_del_pdf'] ?? null,
+                    'nubefact_key'       => $respuesta['data']['key'] ?? $respuesta['key'] ?? null,
+                ]);
+
+            } catch (\Exception $e) {
+
+                \Log::error('Error al emitir comprobante NubeFact', [
+                    'venta_id' => $sell->Id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+
+            /* =========================
+            6️⃣ RESPUESTA FINAL
+            ========================= */
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta creada correctamente',
+                'qr_token' => $sell->qr_token,
+                'data' => $sell->load([
+                    'user',
+                    'direction',
+                    'details.product',
+                    'details.detailLotes.lote'
+                ])
+            ], 201);
         });
     }
 
@@ -310,52 +501,7 @@ class SellController extends Controller
         return response()->json($sell->load(['user', 'direction', 'details.product', 'details.detailLotes.lote']), 200);
     }
 
-    /**
-     * Eliminar una venta (devuelve productos a lotes)
-     */
-    public function destroy($id)
-    {
-        $sell = Sell::find($id);
-
-        if (!$sell) {
-            return response()->json(['message' => 'Venta no encontrada'], 404);
-        }
-
-        return DB::transaction(function () use ($sell, $id) {
-            // Obtener todos los detalles de lote de esta venta
-            $detailLotes = DetailLote::whereHas('detailSell', function ($query) use ($id) {
-                $query->where('Id_Venta', $id);
-            })->get();
-
-            // Devolver cantidad a los lotes
-            foreach ($detailLotes as $detailLote) {
-                $lote = Lote::find($detailLote->Id_Lote);
-                if ($lote) {
-                    $lote->Cantidad += $detailLote->Cantidad;
-                    
-                    // Si estaba agotado y ahora tiene cantidad, cambiar a Disponible
-                    if ($lote->Estado === 'Agotado' && $lote->Cantidad > 0) {
-                        $lote->Estado = 'Disponible';
-                    }
-                    
-                    $lote->save();
-                }
-            }
-
-            // Eliminar detalles de lote
-            DetailLote::whereHas('detailSell', function ($query) use ($id) {
-                $query->where('Id_Venta', $id);
-            })->delete();
-
-            // Eliminar detalles de venta
-            DetailSell::where('Id_Venta', $id)->delete();
-
-            // Eliminar venta
-            $sell->delete();
-
-            return response()->json(['message' => 'Venta eliminada correctamente. Productos devueltos a lotes.'], 200);
-        });
-    }
+    
 
     /**
      * Validar entrega mediante QR
@@ -521,5 +667,66 @@ class SellController extends Controller
         }
     }
 
+    private function buildNubeFactPayload(Sell $sell)
+    {
+        $tipoComprobante = $sell->Comprobante === 'Factura' ? 1 : 2;
+        $serie = $tipoComprobante === 1 ? 'F001' : 'B001';
+
+        $totalGravada = 0;
+        $totalIgv = 0;
+        $total = 0;
+
+        $items = [];
+
+        foreach ($sell->details as $detail) {
+
+            // 🔴 DATOS REALES DE TU MODELO
+            $cantidad = (int) $detail->Cantidad;
+            $precioUnitario = (float) $detail->Costo; // con IGV
+
+            // 🔴 CÁLCULO INDEPENDIENTE (SOLO PARA SUNAT)
+            $valorUnitario = round($precioUnitario / 1.18, 2);
+            $subtotal = round($valorUnitario * $cantidad, 2);
+            $igv = round($subtotal * 0.18, 2);
+            $totalLinea = round($subtotal + $igv, 2);
+
+            $totalGravada += $subtotal;
+            $totalIgv += $igv;
+            $total += $totalLinea;
+
+            $items[] = [
+                "unidad_de_medida" => "NIU",
+                "codigo" => $detail->product->id,
+                "descripcion" => $detail->product->nombre,
+                "cantidad" => $cantidad,
+                "valor_unitario" => $valorUnitario,
+                "precio_unitario" => $precioUnitario,
+                "subtotal" => $subtotal,
+                "tipo_de_igv" => 1,
+                "igv" => $igv,
+                "total" => $totalLinea
+            ];
+        }
+
+        return [
+            "operacion" => "generar_comprobante",
+            "tipo_de_comprobante" => $tipoComprobante,
+            "serie" => $serie,
+            "numero" => "",
+            "codigo_unico" => 'VENTA-' . $sell->Id,
+            "cliente_tipo_de_documento" => $tipoComprobante === 1 ? "6" : "1",
+            "cliente_numero_de_documento" => $sell->RUC ?? "12345678",
+            "cliente_denominacion" => $tipoComprobante === 1
+                ? "CLIENTE FACTURA"
+                : "CLIENTE BOLETA",
+            "fecha_de_emision" => now('America/Lima')->format('d-m-Y'),
+            "moneda" => 1,
+            "total_gravada" => round($totalGravada, 2),
+            "total_igv" => round($totalIgv, 2),
+            "total" => round($total, 2),
+            "items" => $items
+        ];
+
+    }
 }
 

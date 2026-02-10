@@ -14,6 +14,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ChatDataController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\ImagenController;
+use App\Http\Controllers\ComprobanteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -65,7 +66,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/productos/{producto}/imagenes', [ImagenController::class, 'show']);
     Route::delete('/imagenes-secundarias/{id}', [ImagenSecundariaController::class, 'destroy']);
 
-
     Route::get('/categorias', [CategoryController::class, 'index']);
     Route::post('/categorias', [CategoryController::class, 'store']);
     Route::put('/categorias/{id}', [CategoryController::class, 'update']);
@@ -83,6 +83,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/ventas/{id}', [SellController::class, 'update']);
     Route::post('/ventas/{id}/cancelar', [SellController::class, 'cancelSell']);
     Route::post('/ventas/validar-entrega', [SellController::class, 'validarEntregaPorQR']);
+    Route::delete('/ventas/{id}', [SellController::class, 'destroy']);
+    Route::post('/ventas/{id}/aprobar', [SellController::class, 'aprobarVenta']);
+    Route::get('/ventas/revision', [SellController::class, 'ventasEnRevision']);
 
     Route::post('/directions', [DirectionController::class, 'store']);
 
@@ -97,6 +100,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/total-count', [AlertController::class, 'totalCount']);
         Route::get('/unread-index', [AlertController::class, 'unreadIndex']);
     });
+
     Route::delete('/alerts/{id}', [AlertController::class, 'destroy']);
 
+    Route::prefix('comprobantes')->group(function () {
+        Route::get('/boletas', [ComprobanteController::class, 'boletas']);
+        Route::get('/boletas/{codigo_unico}', [ComprobanteController::class, 'showBoleta']);
+        Route::get('/boletas/{codigo_unico}/pdf', [ComprobanteController::class, 'verPdf']);
+    });
 });

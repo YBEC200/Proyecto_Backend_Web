@@ -99,7 +99,7 @@ return new class extends Migration
                 WHERE Id_Producto = NEW.Id_Producto;
                 
                 IF cantidad_total = 0 THEN
-                    UPDATE productos SET estado = "Inactivo" WHERE id = NEW.Id_Producto;
+                    UPDATE productos SET estado = "Agotado" WHERE id = NEW.Id_Producto;
                 ELSEIF cantidad_activa = 0 THEN
                     UPDATE productos SET estado = "Agotado" WHERE id = NEW.Id_Producto;
                 ELSE

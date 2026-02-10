@@ -20,12 +20,19 @@ class Sell extends Model
         'Id_Usuario',
         'Metodo_Pago',
         'Comprobante',
+        'Ruc',
         'Id_Direccion',
         'Fecha',
         'Costo_Total',
         'estado',
         'tipo_entrega',
-        'qr_token'
+        'qr_token',
+        'voucher_url',
+        'codigo_unico',
+        'serie',
+        'numero_comprobante',
+        'enlace_pdf',
+        'nubefact_key',
     ];
 
     protected $casts = [

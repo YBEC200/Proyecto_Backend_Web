@@ -35,4 +35,10 @@ return [
         'url' => env('RAG_SERVICE_URL', 'http://localhost:8000'),
     ],
 
+    'nubefact' => [
+        'url' => env('NUBEFACT_URL'),
+        'token' => env('NUBEFACT_TOKEN'),
+        'modo' => env('NUBEFACT_MODO', 'demo'),
+    ],
+
 ];
