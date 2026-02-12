@@ -14,12 +14,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\NubeFactService;
 
+
 class SellController extends Controller
 {
     /**
      * Obtener todas las ventas con filtros opcionales
      * Query parameters:
-     * - estado: Cancelado|Entregado|Pendiente
+     * - estado: Cancelado|Entregado|Pendiente (El estado 'En Revision' no se incluye en esta lista, para eso hay un endpoint específico)
      * - nombre_cliente: búsqueda por nombre de usuario
      * - fecha: YYYY-MM-DD (búsqueda por fecha exacta)
      * - fecha_inicio: YYYY-MM-DD (rango de fechas)
@@ -193,6 +194,75 @@ class SellController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Cancelar venta en estado "En Revision"
+     * Devuelve productos a lotes y cambia estado a "Cancelado"
+     */
+    public function cancelarVentaEnRevision(Request $request, $id)
+    {
+        $sell = Sell::with([
+            'details.detailLotes'
+        ])->find($id);
+
+        if (!$sell) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Venta no encontrada'
+            ], 404);
+        }
+
+        if ($sell->estado !== 'En Revision') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se pueden cancelar ventas en estado En Revision'
+            ], 400);
+        }
+
+        return DB::transaction(function () use ($sell, $request) {
+
+            /* =========================
+            1️⃣ DEVOLVER STOCK A LOTES
+            ========================= */
+
+            foreach ($sell->details as $detail) {
+                foreach ($detail->detailLotes as $detailLote) {
+
+                    $lote = Lote::find($detailLote->Id_Lote);
+
+                    if ($lote) {
+                        $lote->Cantidad += $detailLote->Cantidad;
+
+                        if ($lote->Estado === 'Agotado' && $lote->Cantidad > 0) {
+                            $lote->Estado = 'Disponible';
+                        }
+
+                        $lote->save();
+                    }
+                }
+            }
+
+            /* =========================
+            2️⃣ ACTUALIZAR ESTADO
+            ========================= */
+
+            $sell->update([
+                'estado' => 'Cancelado',
+                'motivo_cancelacion' => $request->motivo ?? null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta cancelada correctamente. Stock devuelto.',
+                'data' => $sell->fresh()->load([
+                    'user',
+                    'details.product',
+                    'details.detailLotes.lote'
+                ])
+            ], 200);
+        });
+    }
+
 
     /**
      * Eliminar una venta (devuelve productos a lotes)
@@ -502,49 +572,6 @@ class SellController extends Controller
     }
 
     
-
-    /**
-     * Validar entrega mediante QR
-     */
-    public function validarEntregaPorQR(Request $request)
-    {
-        $validated = $request->validate([
-            'qr_token' => 'required|string'
-        ]);
-
-        // Buscar venta por el token
-        $sell = Sell::where('qr_token', $validated['qr_token'])->first();
-
-        if (!$sell) {
-            return response()->json([
-                'message' => 'Código QR inválido o no existe'
-            ], 404);
-        }
-
-        // Verificar estado actual
-        if ($sell->estado === 'Entregado') {
-            return response()->json([
-                'message' => 'Esta venta ya fue entregada'
-            ], 400);
-        }
-
-        if ($sell->estado === 'Cancelado') {
-            return response()->json([
-                'message' => 'Esta venta fue cancelada y no puede ser entregada'
-            ], 400);
-        }
-
-        // Actualizar estado a Entregado
-        $sell->estado = 'Entregado';
-        $sell->save();
-
-        return response()->json([
-            'message' => 'Entrega confirmada correctamente',
-            'venta_id' => $sell->id,
-            'estado' => $sell->estado,
-            'fecha_entrega' => now()
-        ], 200);
-    }
 
     /**
      * Obtener detalles de una venta con información de lotes

@@ -32,7 +32,7 @@ return [
     ],
 
     'rag' => [
-        'url' => env('RAG_SERVICE_URL', 'http://localhost:8000'),
+        'url' => env('RAG_SERVICE_URL', 'http://localhost:8001'),
     ],
 
     'nubefact' => [

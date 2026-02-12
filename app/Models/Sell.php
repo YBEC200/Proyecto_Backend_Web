@@ -33,6 +33,7 @@ class Sell extends Model
         'numero_comprobante',
         'enlace_pdf',
         'nubefact_key',
+        'motivo_cancelacion',
     ];
 
     protected $casts = [

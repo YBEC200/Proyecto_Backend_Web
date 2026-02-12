@@ -51,37 +51,4 @@ class AuthController extends Controller
             'message' => 'Sesión cerrada correctamente'
         ]);
     }
-
-    public function login(Request $request)
-    {
-        $request->validate([
-            'correo' => 'required|email',
-            'password' => 'required'
-        ]);
-
-        $user = User::where('correo', $request->correo)
-                    ->where('estado', 'Activo')
-                    ->first();
-
-        if (!$user || !Hash::check($request->password, $user->password_hash)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Correo electrónico y/o contraseña incorrectos.'
-            ], 401);
-        }
-
-        // Generar token con Sanctum
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'success' => true,
-            'user' => [
-                'id' => $user->id,
-                'nombre' => $user->nombre,
-                'correo' => $user->correo,
-                'rol' => $user->rol
-            ],
-            'token' => $token
-        ]);
-    }
 }

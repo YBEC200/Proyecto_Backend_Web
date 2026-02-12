@@ -15,6 +15,8 @@ use App\Http\Controllers\ChatDataController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\ComprobanteController;
+use App\Http\Controllers\MovilController;
+use App\Http\Controllers\MovilSellController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,7 +33,15 @@ Route::get('/login', function () {
         'message' => 'Este endpoint solo acepta POST'
     ], 405);
 });
-Route::post('/login', [AuthController::class, 'login']);
+
+//Clientes se registran por la app movil, no hay registro público para ellos
+Route::post('/login', [MovilController::class, 'login']);
+Route::post('/register', [MovilController::class, 'register']);
+
+// Endpoint para obtener productos con filtros para la app móvil, no necesita token porque es información pública
+Route::get('/movil/productos', [MovilController::class, 'index']);
+
+// Administradores, no hay registro público para ellos
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -82,8 +92,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ventas', [SellController::class, 'store']);
     Route::put('/ventas/{id}', [SellController::class, 'update']);
     Route::post('/ventas/{id}/cancelar', [SellController::class, 'cancelSell']);
-    Route::post('/ventas/validar-entrega', [SellController::class, 'validarEntregaPorQR']);
-    Route::delete('/ventas/{id}', [SellController::class, 'destroy']);
+    //LISTA DE VENTAS EN REVISION, APROBAR VENTA, ELIMINAR VENTA
+    Route::post('/ventas/{id}/cancelar-revision', [SellController::class, 'cancelarVentaEnRevision']);
     Route::post('/ventas/{id}/aprobar', [SellController::class, 'aprobarVenta']);
     Route::get('/ventas/revision', [SellController::class, 'ventasEnRevision']);
 
@@ -91,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/chat', [ChatController::class, 'chat']);
     Route::get('/chat/productos', [ChatDataController::class, 'productos']);
+    Route::post('/chat/productos-stock', [ChatDataController::class, 'stockPorProductos']);
 
     Route::prefix('alerts')->group(function () {
         Route::get('/', [AlertController::class, 'index']);
@@ -108,4 +119,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/boletas/{codigo_unico}', [ComprobanteController::class, 'showBoleta']);
         Route::get('/boletas/{codigo_unico}/pdf', [ComprobanteController::class, 'verPdf']);
     });
+
+    // endpoints para movil
+    Route::get('/movil/productos', [MovilController::class, 'index']);
+    Route::post('/movil/ventas', [MovilSellController::class, 'store']);
+    Route::get('/movil/ventas/{id}', [MovilSellController::class, 'show']);
+    Route::post('/movil/ventas/validar-entrega', [MovilSellController::class, 'validarEntregaPorQR']);
 });

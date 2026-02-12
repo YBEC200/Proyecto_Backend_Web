@@ -119,6 +119,7 @@ class ProductController extends Controller
             return response()->json(['message' => 'Error al actualizar el producto'], 500);
         }
     }
+    
     public function canDelete($id)
     {
         $producto = Product::find($id);

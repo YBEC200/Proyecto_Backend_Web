@@ -155,7 +155,7 @@ class EstadisticasController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | 4️⃣ Totales generales por mes (sin importar tipo_entrega)
+        | 4️⃣ Totales generales por mes (solo ventas Entregado, sin importar tipo_entrega) para mostrar en el resumen debajo del gráfico
         |--------------------------------------------------------------------------
         */
         $totalesPorMes = array_fill(0, 12, 0.0);
@@ -166,6 +166,7 @@ class EstadisticasController extends Controller
                 DB::raw('SUM(Costo_Total) as total')
             )
             ->whereYear('Fecha', $year)
+            ->where('estado', 'Entregado')
             ->groupBy('month')
             ->get();
 
@@ -198,6 +199,7 @@ class EstadisticasController extends Controller
 
     /**
      * Total de ventas (conteo) en un mes específico
+     * Importante: solo contar ventas con estado Entregado
      * Query params: year (opcional, por defecto año actual), month (1-12, obligatorio)
      */
     public function totalVentasMes(Request $request, $month = null, $year = null)
@@ -212,6 +214,7 @@ class EstadisticasController extends Controller
 
         $totalVentas = Sell::whereYear('Fecha', $year)
             ->whereMonth('Fecha', $month)
+            ->where('estado', 'Entregado')
             ->count();
 
         return response()->json([
@@ -225,6 +228,7 @@ class EstadisticasController extends Controller
      * Ganancias totales de un año específico
      * Query param: year (opcional, por defecto año actual)
      * Devuelve total anual y desglose mensual
+     * Solo contar ventas con estado Entregado
      */
     public function gananciasAnio(Request $request, $year = null)
     {
@@ -236,6 +240,7 @@ class EstadisticasController extends Controller
         $mensual = DB::table('ventas')
             ->select(DB::raw('MONTH(Fecha) as month'), DB::raw('SUM(Costo_Total) as total'))
             ->whereYear('Fecha', $year)
+            ->where('estado', 'Entregado')
             ->groupBy('month')
             ->orderBy('month')
             ->get()

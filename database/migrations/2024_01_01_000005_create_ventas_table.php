@@ -29,6 +29,7 @@ return new class extends Migration
             $table->string('numero_comprobante', 20)->nullable();
             $table->string('enlace_pdf', 255)->nullable();
             $table->string('nubefact_key', 255)->nullable();
+            $table->text('motivo_cancelacion')->nullable();
             
             
             // Llaves foráneas
