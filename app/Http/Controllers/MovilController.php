@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Services\NubeFactService;
 
 class MovilController extends Controller
 {

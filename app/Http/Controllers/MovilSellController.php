@@ -8,6 +8,7 @@ use App\Models\DetailSell;
 use App\Models\DetailLote;
 use App\Models\Lote;
 use Illuminate\Support\Facades\DB;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class MovilSellController extends Controller
 {
@@ -52,8 +53,9 @@ class MovilSellController extends Controller
             foreach ($validated['details'] as $detail) {
 
                 $cantidadDisponible = Lote::where('Id_Producto', $detail['id_producto'])
-                    ->where('Estado', 'Activo')
-                    ->sum('Cantidad');
+                            ->where('Estado', 'Activo')
+                            ->lockForUpdate()
+                            ->get();;
 
                 if ($cantidadDisponible < $detail['cantidad']) {
                     return response()->json([
