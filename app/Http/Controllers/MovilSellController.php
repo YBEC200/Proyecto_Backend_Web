@@ -9,6 +9,7 @@ use App\Models\DetailLote;
 use App\Models\Lote;
 use Illuminate\Support\Facades\DB;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Illuminate\Support\Str;
 
 class MovilSellController extends Controller
 {
@@ -24,134 +25,155 @@ class MovilSellController extends Controller
      */
     public function store(Request $request)
     {
-        // Validación de datos
         $validated = $request->validate([
             'id_usuario' => 'required|exists:users,id',
             'fecha' => 'required|date',
-            'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
             'comprobante' => 'required|in:Boleta,Factura',
-            'ruc' => 'nullable|string|size:11',
-            'id_direccion' => 'nullable|exists:direccion,id',
+            'ruc' => 'required_if:comprobante,Factura|nullable|string|size:11',
+            'id_direccion' => 'nullable|exists:direccion,Id',
             'tipo_entrega' => 'required|in:Envío a Domicilio,Recojo en Tienda',
-            'costo_total' => 'required|numeric|min:0',
             'details' => 'required|array|min:1',
             'details.*.id_producto' => 'required|exists:productos,id',
             'details.*.cantidad' => 'required|integer|min:1',
-            'details.*.costo' => 'required|numeric|min:0'
+            'details.*.costo' => 'required|numeric|min:0',
+            'voucher' => 'required|image|max:4096'
         ]);
 
-        // Aquí iría la lógica para crear la venta, validar stock, emitir comprobante, etc.
-        // Por simplicidad, solo devolveremos los datos validados por ahora.
+        try {
 
-        return DB::transaction(function () use ($validated) {
-            // Validar stock, crear venta, emitir comprobante, etc.
-            // Este es un ejemplo simplificado y no implementa toda la lógica mencionada.
+            return DB::transaction(function () use ($validated, $request) {
 
-            /* =========================
-            1️⃣ VALIDAR STOCK
-            ========================= */
-            foreach ($validated['details'] as $detail) {
-
-                $cantidadDisponible = Lote::where('Id_Producto', $detail['id_producto'])
-                            ->where('Estado', 'Activo')
-                            ->lockForUpdate()
-                            ->get();;
-
-                if ($cantidadDisponible < $detail['cantidad']) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Stock insuficiente',
-                        'producto_id' => $detail['id_producto'],
-                        'requested' => $detail['cantidad'],
-                        'available' => $cantidadDisponible
-                    ], 409);
+                /* =========================
+                1️⃣ VALIDAR DIRECCIÓN
+                ========================= */
+                if (
+                    $validated['tipo_entrega'] === 'Envío a Domicilio' &&
+                    empty($validated['id_direccion'])
+                ) {
+                    throw new \Exception('Dirección requerida para envío');
                 }
-            }
 
-            /* =========================
-            2️⃣ VALIDAR DIRECCIÓN
-            ========================= */
-            if (
-                $validated['tipo_entrega'] === 'Envío a Domicilio' &&
-                empty($validated['id_direccion'])
-            ) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Dirección requerida para envío'
-                ], 400);
-            }
+                /* =========================
+                2️⃣ VALIDAR STOCK + CALCULAR TOTAL
+                ========================= */
+                $totalCalculado = 0;
 
-            $sell = Sell::create([
-                'Id_Usuario' => $validated['id_usuario'],
-                'Metodo_Pago' => $validated['metodo_pago'],
-                'Comprobante' => $validated['comprobante'],
-                'RUC' => $validated['ruc'] ?? null,
-                'Id_Direccion' => $validated['id_direccion'] ?? null,
-                'Fecha' => $validated['fecha'],
-                'Costo_Total' => $validated['costo_total'],
-                'estado' => 'En Revision',
-                'tipo_entrega' => $validated['tipo_entrega'],
-                'qr_token' => \Str::uuid(),
-            ]);
+                foreach ($validated['details'] as $detail) {
 
-            /* =========================
-            4️⃣ DETALLES + LOTES
-            ========================= */
-            foreach ($validated['details'] as $detail) {
+                    $lotes = Lote::where('Id_Producto', $detail['id_producto'])
+                        ->where('Estado', 'Activo')
+                        ->lockForUpdate()
+                        ->get();
 
-                $detailSell = DetailSell::create([
-                    'Id_Venta'    => $sell->Id,
-                    'Id_Producto' => $detail['id_producto'],
-                    'Cantidad'    => $detail['cantidad'],
-                    'Costo'       => $detail['costo']
+                    $cantidadDisponible = $lotes->sum('Cantidad');
+
+                    if ($cantidadDisponible < $detail['cantidad']) {
+                        throw new \Exception("Stock insuficiente para producto {$detail['id_producto']}");
+                    }
+
+                    $totalCalculado += $detail['cantidad'] * $detail['costo'];
+                }
+
+                /* =========================
+                3️⃣ SUBIR VOUCHER A CLOUDINARY
+                ========================= */
+                $voucherUrl = null;
+
+                if ($request->hasFile('voucher')) {
+                    $upload = Cloudinary::upload(
+                        $request->file('voucher')->getRealPath(),
+                        [
+                            'folder' => 'vouchers'
+                        ]
+                    );
+                    $voucherUrl = $upload->getSecurePath();
+                }
+
+                /* =========================
+                4️⃣ CREAR VENTA
+                ========================= */
+                $sell = Sell::create([
+                    'Id_Usuario' => $validated['id_usuario'],
+                    'Metodo_Pago' => 'Yape', // 🔥 Forzado automáticamente
+                    'Comprobante' => $validated['comprobante'],
+                    'Ruc' => $validated['ruc'] ?? null,
+                    'Id_Direccion' => $validated['id_direccion'] ?? null,
+                    'Fecha' => $validated['fecha'],
+                    'Costo_Total' => $totalCalculado,
+                    'estado' => 'En Revision',
+                    'tipo_entrega' => $validated['tipo_entrega'],
+                    'qr_token' => Str::uuid(),
+                    'voucher_url' => $voucherUrl,
                 ]);
 
-                $cantidadFaltante = $detail['cantidad'];
+                /* =========================
+                5️⃣ CREAR DETALLES + DESCONTAR FIFO
+                ========================= */
+                foreach ($validated['details'] as $detail) {
 
-                $lotes = Lote::where('Id_Producto', $detail['id_producto'])
-                    ->where('Estado', 'Activo')
-                    ->orderBy('Fecha_Registro')
-                    ->get();
-
-                foreach ($lotes as $lote) {
-
-                    if ($cantidadFaltante <= 0) break;
-
-                    $descontar = min($cantidadFaltante, $lote->Cantidad);
-
-                    DetailLote::create([
-                        'Id_Detalle_Venta' => $detailSell->Id,
-                        'Id_Lote' => $lote->Id,
-                        'Cantidad' => $descontar
+                    $detailSell = DetailSell::create([
+                        'Id_Venta'    => $sell->Id,
+                        'Id_Producto' => $detail['id_producto'],
+                        'Cantidad'    => $detail['cantidad'],
+                        'Costo'       => $detail['costo']
                     ]);
 
-                    $lote->Cantidad -= $descontar;
-                    if ($lote->Cantidad <= 0) {
-                        $lote->Estado = 'Inactivo';
+                    $cantidadFaltante = $detail['cantidad'];
+
+                    $lotes = Lote::where('Id_Producto', $detail['id_producto'])
+                        ->where('Estado', 'Activo')
+                        ->orderBy('Fecha_Registro')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($lotes as $lote) {
+
+                        if ($cantidadFaltante <= 0) break;
+
+                        $descontar = min($cantidadFaltante, $lote->Cantidad);
+
+                        DetailLote::create([
+                            'Id_Detalle_Venta' => $detailSell->Id,
+                            'Id_Lote' => $lote->Id,
+                            'Cantidad' => $descontar
+                        ]);
+
+                        $lote->Cantidad -= $descontar;
+
+                        if ($lote->Cantidad <= 0) {
+                            $lote->Estado = 'Inactivo';
+                        }
+
+                        $lote->save();
+
+                        $cantidadFaltante -= $descontar;
                     }
-                    $lote->save();
-
-                    $cantidadFaltante -= $descontar;
                 }
-            }
 
+                /* =========================
+                6️⃣ RESPUESTA FINAL
+                ========================= */
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Venta creada y enviada a revisión',
+                    'qr_token' => $sell->qr_token,
+                    'data' => $sell->load([
+                        'user',
+                        'direction',
+                        'details.product',
+                        'details.detailLotes.lote'
+                    ])
+                ], 201);
 
-            /* =========================
-            6️⃣ RESPUESTA FINAL
-            ========================= */
+            });
+
+        } catch (\Exception $e) {
+
             return response()->json([
-                'success' => true,
-                'message' => 'Venta creada correctamente',
-                'qr_token' => $sell->qr_token,
-                'data' => $sell->load([
-                    'user',
-                    'direction',
-                    'details.product',
-                    'details.detailLotes.lote'
-                ])
-            ], 201);
-        
-        });
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /*

@@ -7,6 +7,10 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Services\NubeFactService;
+use App\Models\Category;
+use App\Models\Direction;
+use App\Models\Sell;
+use Illuminate\Support\Facades\DB;
 
 class MovilController extends Controller
 {
