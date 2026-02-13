@@ -32,49 +32,55 @@ class UsuarioController extends Controller
     }
 
     // Actualizar un usuario existente
+    //Se actualizara solo los campos enviados, no es necesario enviar todos los campos para actualizar
     public function update(Request $request, $id)
     {
         $usuario = User::find($id);
-
         if (!$usuario) {
-            return response()->json(['message' => 'Usuario no encontrado'], 404);
+            return response()->json(['message' => 'Usuario no encontrado.'], 404);
         }
 
-        $request->validate([
-            'nombre' => 'sometimes|string|max:150',
-            'correo' => 'sometimes|email|max:150|unique:users,correo,' . $id,
+        $data = $request->only(['nombre', 'correo', 'password', 'rol', 'estado']);
+
+        $rules = [
+            'nombre' => 'sometimes|string|max:255',
+            'correo' => 'sometimes|email|max:255|unique:users,correo,' . $id,
             'password' => 'sometimes|string|min:6|confirmed',
-            'rol' => 'sometimes|in:Administrador,Empleado,Cliente',
-            'estado' => 'sometimes|in:Activo,Inactivo',
-        ]);
+            'rol' => 'sometimes|string|in:admin,user', // ajusta roles permitidos según tu app
+            'estado' => 'sometimes|in:activo,inactivo,pendiente' // ajusta estados si hace falta
+        ];
 
-        // Solo actualiza los campos enviados
-        if ($request->filled('nombre')) {
-            $usuario->nombre = $request->nombre;
+        $validator = Validator::make($data, $rules);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if ($request->filled('correo')) {
-            $usuario->correo = $request->correo;
+        if (array_key_exists('nombre', $data)) {
+            $usuario->nombre = $data['nombre'];
         }
 
-        if ($request->filled('rol')) {
-            $usuario->rol = $request->rol;
+        if (array_key_exists('correo', $data)) {
+            $usuario->correo = $data['correo'];
         }
 
-        if ($request->filled('estado')) {
-            $usuario->estado = $request->estado;
+        if (array_key_exists('rol', $data)) {
+            $usuario->rol = $data['rol'];
         }
 
-        if ($request->filled('password')) {
-            $usuario->password_hash = bcrypt($request->password);
+        if (array_key_exists('estado', $data)) {
+            $usuario->estado = $data['estado'];
+        }
+
+        if (array_key_exists('password', $data) && !empty($data['password'])) {
+            $usuario->password_hash = bcrypt($data['password']);
         }
 
         $usuario->save();
 
         return response()->json([
-            'message' => 'Usuario actualizado correctamente',
+            'message' => 'Usuario actualizado correctamente.',
             'usuario' => $usuario
-        ]);
+        ], 200);
     }
 
     // Listar usuarios con filtros
