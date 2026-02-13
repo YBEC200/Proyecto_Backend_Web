@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Direction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DirectionController extends Controller
 {
@@ -27,7 +28,7 @@ class DirectionController extends Controller
 
             return response()->json([
                 'message' => 'Dirección guardada correctamente',
-                'id' => $direction->id
+                'id' => $direction->Id
             ], 201);
 
         } catch (\Exception $e) {

@@ -339,7 +339,7 @@ class SellController extends Controller
                 'metodo_pago' => 'required|in:Efectivo,Tarjeta,Deposito,Yape',
                 'comprobante' => 'required|in:Boleta,Factura',
                 'ruc' => 'nullable|string|size:11',
-                'id_direccion' => 'nullable|exists:direccion,id',
+                'id_direccion' => 'nullable|exists:direccion,Id',
                 'tipo_entrega' => 'required|in:Envío a Domicilio,Recojo en Tienda',
                 'costo_total' => 'required|numeric|min:0',
                 'details' => 'required|array|min:1',

@@ -72,4 +72,18 @@ class ComprobanteController extends Controller
 
         return redirect()->away($boleta->enlace_pdf);
     }
+
+    /**
+    * Descargar PDF de la boleta
+    */
+    public function descargarPdf($codigo)
+    {
+        $boleta = Sell::where('codigo_unico', $codigo)->firstOrFail();
+
+        return response()->streamDownload(function () use ($boleta) {
+            echo file_get_contents($boleta->enlace_pdf);
+        }, 'boleta.pdf', [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
 }

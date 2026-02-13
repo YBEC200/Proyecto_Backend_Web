@@ -118,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/boletas', [ComprobanteController::class, 'boletas']);
         Route::get('/boletas/{codigo_unico}', [ComprobanteController::class, 'showBoleta']);
         Route::get('/boletas/{codigo_unico}/pdf', [ComprobanteController::class, 'verPdf']);
+        Route::get('/descargar/{codigo_unico}/pdf', [ComprobanteController::class, 'descargarPdf']);
     });
 
     // endpoints para movil
