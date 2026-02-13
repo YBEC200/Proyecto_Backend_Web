@@ -41,19 +41,40 @@ class UsuarioController extends Controller
         }
 
         $request->validate([
-            'nombre' => 'required|string|max:150',
-            'correo' => 'required|email|max:150|unique:users,correo,' . $id,
-            'rol' => 'required|in:Administrador,Empleado,Cliente',
-            'estado' => 'required|in:Activo,Inactivo',
+            'nombre' => 'sometimes|string|max:150',
+            'correo' => 'sometimes|email|max:150|unique:users,correo,' . $id,
+            'password' => 'sometimes|string|min:6|confirmed',
+            'rol' => 'sometimes|in:Administrador,Empleado,Cliente',
+            'estado' => 'sometimes|in:Activo,Inactivo',
         ]);
 
-        $usuario->nombre = $request->nombre;
-        $usuario->correo = $request->correo;
-        $usuario->rol = $request->rol;
-        $usuario->estado = $request->estado;
+        // Solo actualiza los campos enviados
+        if ($request->filled('nombre')) {
+            $usuario->nombre = $request->nombre;
+        }
+
+        if ($request->filled('correo')) {
+            $usuario->correo = $request->correo;
+        }
+
+        if ($request->filled('rol')) {
+            $usuario->rol = $request->rol;
+        }
+
+        if ($request->filled('estado')) {
+            $usuario->estado = $request->estado;
+        }
+
+        if ($request->filled('password')) {
+            $usuario->password_hash = bcrypt($request->password);
+        }
+
         $usuario->save();
 
-        return response()->json(['message' => 'Usuario actualizado correctamente', 'usuario' => $usuario]);
+        return response()->json([
+            'message' => 'Usuario actualizado correctamente',
+            'usuario' => $usuario
+        ]);
     }
 
     // Listar usuarios con filtros

@@ -63,7 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
     Route::post('/usuarios', [UsuarioController::class, 'store']);
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
-    Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
+    Route::patch('/usuarios/{id}', [UsuarioController::class, 'update']);
     Route::get('/usuarios/{id}/can-delete', [UsuarioController::class, 'canDelete']);
 
     Route::get('/productos', [ProductController::class, 'index']);
@@ -122,7 +122,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // endpoints para movil
-    Route::get('/movil/productos', [MovilController::class, 'index']);
     Route::post('/movil/ventas', [MovilSellController::class, 'store']);
     Route::get('/movil/ventas/{id}', [MovilSellController::class, 'show']);
     Route::post('/movil/ventas/validar-entrega', [MovilSellController::class, 'validarEntregaPorQR']);
