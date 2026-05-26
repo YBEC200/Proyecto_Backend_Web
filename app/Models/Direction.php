@@ -18,6 +18,7 @@ class Direction extends Model
         'referencia'
     ];
 
+    
     /**
      * Relación: Una dirección pertenece a muchas ventas
      */
