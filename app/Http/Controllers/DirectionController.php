@@ -41,6 +41,7 @@ class DirectionController extends Controller
                 ], 422);
             }
 
+            // 🔍 Crear dirección
             $direction = Direction::create([
                 'ciudad' => $validated['ciudad'],
                 'calle' => $validated['calle'],
@@ -49,16 +50,42 @@ class DirectionController extends Controller
                     : null,
             ]);
 
+            // 🔍 Validar que el ID fue generado correctamente
+            $direccionId = $direction->id;
+            
+            // Logging para debugging
+            \Log::info('Dirección guardada exitosamente', [
+                'id' => $direccionId,
+                'tipo_id' => gettype($direccionId),
+                'es_entero' => is_int($direccionId),
+                'ciudad' => $direction->ciudad,
+                'calle' => $direction->calle,
+            ]);
+
+            // ✅ Respuesta garantizada con ID válido
             return response()->json([
+                'success' => true,
                 'message' => 'Dirección guardada correctamente',
-                'id' => $direction->id,  // ✅ Asegúrate que sea 'id' o 'Id' según tu modelo
-                'data' => $direction
+                'id' => (int) $direccionId,  // 🔴 CRÍTICO: Convertir a entero explícitamente
+                'data' => [
+                    'id' => (int) $direccionId,
+                    'ciudad' => $direction->ciudad,
+                    'calle' => $direction->calle,
+                    'referencia' => $direction->referencia,
+                    'created_at' => $direction->created_at,
+                ]
             ], 201);
 
         } catch (\Exception $e) {
-            \Log::error('Error al guardar dirección: ' . $e->getMessage());
+            \Log::error('Error al guardar dirección', [
+                'mensaje' => $e->getMessage(),
+                'archivo' => $e->getFile(),
+                'línea' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             
             return response()->json([
+                'success' => false,
                 'message' => 'Error al guardar la dirección',
                 'error' => $e->getMessage()
             ], 500);
