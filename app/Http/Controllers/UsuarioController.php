@@ -11,24 +11,95 @@ class UsuarioController extends Controller
     // Crear un nuevo usuario
     public function store(Request $request)
     {
+        // 1. Validamos los datos (Quitamos el 'unique' automático para manejarlo nosotros)
         $request->validate([
             'nombre' => 'required|string|max:150',
-            'correo' => 'required|email|max:150|unique:users,correo',
+            'correo' => 'required|email|max:150',
             'password' => 'required|string|min:6',
             'rol' => 'required|in:Administrador,Empleado,Cliente',
-            'estado' => 'required|in:Activo,Inactivo',
         ]);
+
+        // 2. Buscamos si ya existe un usuario con ese correo
+        $usuarioExistente = User::where('correo', $request->correo)->first();
+
+        if ($usuarioExistente) {
+            // CASO A: El usuario ya existe y ya está ACTIVO.
+            if ($usuarioExistente->estado === 'Activo') {
+                return response()->json([
+                    'message' => 'El correo electrónico ya se encuentra registrado y activo.'
+                ], 422); // Error estándar de validación
+            }
+
+            // CASO B: El usuario existe pero está INACTIVO (Tu escenario planteado)
+            // Generamos un NUEVO código de 6 dígitos
+            $nuevoCodigo = rand(100000, 999999);
+            
+            // Actualizamos sus datos por si acaso el usuario quiere cambiar su nombre o contraseña en este reintento
+            $usuarioExistente->nombre = $request->nombre;
+            $usuarioExistente->password_hash = bcrypt($request->password);
+            $usuarioExistente->rol = $request->rol;
+            $usuarioExistente->codigo_verificacion = $nuevoCodigo;
+            $usuarioExistente->save();
+
+            // Reenviamos el correo con el nuevo código usando Resend
+            Mail::to($usuarioExistente->correo)->send(new CodigoVerificacionMail($usuarioExistente->nombre, $nuevoCodigo));
+
+            return response()->json([
+                'message' => 'Detectamos un registro previo pendiente. Hemos reenviado un nuevo código a tu correo.',
+                'correo' => $usuarioExistente->correo
+            ], 200); // Retornamos 200 (Éxito de reenvío)
+        }
+
+        // CASO C: El usuario es completamente NUEVO (Primer intento)
+        $codigoObtenido = rand(100000, 999999);
 
         $usuario = new User();
         $usuario->nombre = $request->nombre;
         $usuario->correo = $request->correo;
         $usuario->password_hash = bcrypt($request->password);
         $usuario->rol = $request->rol;
-        $usuario->estado = $request->estado;
+        $usuario->estado = 'Inactivo'; 
+        $usuario->codigo_verificacion = $codigoObtenido; 
         $usuario->fecha_registro = now();
         $usuario->save();
 
-        return response()->json(['message' => 'Usuario creado correctamente', 'usuario' => $usuario], 201);
+        // Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $codigoObtenido));
+
+        return response()->json([
+            'message' => 'Usuario registrado. Por favor, verifica tu correo electrónico.',
+            'correo' => $usuario->correo
+        ], 201);
+    }
+
+    // 2. Confirmación del código (Activa al usuario)
+    public function verificarCodigo(Request $request)
+    {
+        $request->validate([
+            'correo' => 'required|email',
+            'codigo' => 'required|numeric',
+        ]);
+
+        // Buscamos al usuario que coincida con el correo y el código
+        $usuario = User::where('correo', $request->correo)
+                       ->where('codigo_verificacion', $request->codigo)
+                       ->first();
+
+        if (!$usuario) {
+            return response()->json(['message' => 'El código es incorrecto o ya expiró.'], 422);
+        }
+
+        // Si coincide, lo activamos y borramos el código para que no se use de nuevo
+        $usuario->estado = 'Activo';
+        $usuario->codigo_verificacion = null; 
+        $usuario->save();
+
+        // OPCIONAL: Aquí podrías disparar tu "BienvenidaMail" original si quieres
+        // Mail::to($usuario->correo)->send(new BienvenidaMail($usuario));
+
+        return response()->json([
+            'message' => '¡Cuenta verificada con éxito! Ya puedes iniciar sesión.',
+            'usuario' => $usuario
+        ], 200);
     }
 
     // Actualizar un usuario existente
