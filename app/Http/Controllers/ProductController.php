@@ -31,13 +31,28 @@ class ProductController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        $productos = $query->get()->map(function ($producto) {
-            $producto->categoria_nombre = $producto->categoria ? $producto->categoria->Nombre : null;
-            $producto->fecha_ultimo_lote = $producto->lote->isEmpty() ? null : $producto->lote->sortByDesc('Fecha_Registro')->first()->Fecha_Registro;
-            return $producto;
-        });
-
-        return response()->json($productos);
+        try {
+            $productos = $query->get()->map(function ($producto) {
+                $producto->categoria_nombre = $producto->categoria ? $producto->categoria->Nombre : null;
+                
+                // Mejorado: verificar si lote existe y tiene elementos
+                if ($producto->lote && $producto->lote->count() > 0) {
+                    $ultimoLote = $producto->lote->sortByDesc('Fecha_Registro')->first();
+                    $producto->fecha_ultimo_lote = $ultimoLote ? $ultimoLote->Fecha_Registro : null;
+                } else {
+                    $producto->fecha_ultimo_lote = null;
+                }
+                
+                return $producto;
+            });
+    
+            return response()->json($productos);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener productos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // Crear producto
