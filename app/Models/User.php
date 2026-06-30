@@ -23,6 +23,9 @@ class User extends Authenticatable
         'password_hash',
         'rol',
         'estado',
+        'codigo_verificacion',
+        'reset_token',
+        'reset_token_expires_at',
         'fecha_registro'
     ];
 

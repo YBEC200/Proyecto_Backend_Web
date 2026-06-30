@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\NubeFactService;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ReciboCompraMail;
 
 
 class SellController extends Controller
@@ -466,6 +468,17 @@ class SellController extends Controller
             ========================= */
             $sell->refresh();
             $codigoUnico = 'VENTA-' . $sell->getKey();
+            try {
+                $sell->load(['user', 'details.product']);
+                \Mail::to($sell->user->correo)->send(new \App\Mail\ReciboCompraMail($sell->user, $sell));
+                \Log::info('Email de recibo enviado', ['venta_id' => $sell->Id]);
+            } catch (\Exception $e) {
+                \Log::error('Error al enviar email de recibo', [
+                    'venta_id' => $sell->Id,
+                    'error' => $e->getMessage()
+                ]);
+                // No bloquea la venta, solo registra el error
+            }
             try {
 
                 // 🔴 CLAVE

@@ -20,6 +20,9 @@ return new class extends Migration
             $table->string('password_hash');
             $table->enum('rol', ['Administrador', 'Empleado', 'Cliente'])->default('Cliente');
             $table->enum('estado', ['Activo', 'Inactivo'])->default('Activo');
+            $table->string('codigo_verificacion', 6)->nullable();
+            $table->string('reset_token')->nullable()->after('codigo_verificacion');
+            $table->dateTime('reset_token_expires_at')->nullable()->after('reset_token');
             $table->dateTime('fecha_registro')->nullable();
             $table->timestamps();
         });

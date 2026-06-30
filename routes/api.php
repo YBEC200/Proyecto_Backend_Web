@@ -17,6 +17,7 @@ use App\Http\Controllers\ImagenController;
 use App\Http\Controllers\ComprobanteController;
 use App\Http\Controllers\MovilController;
 use App\Http\Controllers\MovilSellController;
+use App\Http\Controllers\PasswordController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,8 +36,12 @@ Route::get('/login', function () {
 });
 
 //Clientes se registran por la app movil, no hay registro público para ellos
-Route::post('/login', [MovilController::class, 'login']);
-Route::post('/register', [MovilController::class, 'register']);
+Route::post('/login', [UsuarioController::class, 'login']);
+Route::post('/register', [UsuarioController::class, 'store']);
+
+// Endpoint para solicitar recuperación de contraseña
+Route::post('/forgot-password', [PasswordController::class, 'forgotPassword']);
+Route::post('/reset-password', [PasswordController::class, 'resetPassword']);
 
 // Endpoint para obtener productos con filtros para la app móvil, no necesita token porque es información pública
 Route::get('/movil/productos', [MovilController::class, 'index']);
@@ -61,7 +66,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/usuarios', [UsuarioController::class, 'index']);
     Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
-    Route::post('/usuarios', [UsuarioController::class, 'store']);
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
     Route::patch('/usuarios/{id}', [UsuarioController::class, 'update']);
     Route::get('/usuarios/{id}/can-delete', [UsuarioController::class, 'canDelete']);

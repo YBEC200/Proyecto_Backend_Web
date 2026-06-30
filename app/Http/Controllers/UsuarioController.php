@@ -3,67 +3,50 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use App\Models\Sell;
+use App\Mail\CodigoVerificacionMail;
+use App\Mail\BienvenidaMail;
 
 class UsuarioController extends Controller
 {
-    // Crear un nuevo usuario
+    // Crear un nuevo usuario cliente con verificación por correo
     public function store(Request $request)
     {
         // 1. Validamos los datos (Quitamos el 'unique' automático para manejarlo nosotros)
         $request->validate([
             'nombre' => 'required|string|max:150',
             'correo' => 'required|email|max:150',
-            'password' => 'required|string|min:6',
-            'rol' => 'required|in:Administrador,Empleado,Cliente',
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
-        // 2. Buscamos si ya existe un usuario con ese correo
+        // Verificar si el correo ya existe (sea activo o inactivo)
         $usuarioExistente = User::where('correo', $request->correo)->first();
 
         if ($usuarioExistente) {
-            // CASO A: El usuario ya existe y ya está ACTIVO.
-            if ($usuarioExistente->estado === 'Activo') {
-                return response()->json([
-                    'message' => 'El correo electrónico ya se encuentra registrado y activo.'
-                ], 422); // Error estándar de validación
-            }
-
-            // CASO B: El usuario existe pero está INACTIVO (Tu escenario planteado)
-            // Generamos un NUEVO código de 6 dígitos
-            $nuevoCodigo = rand(100000, 999999);
-            
-            // Actualizamos sus datos por si acaso el usuario quiere cambiar su nombre o contraseña en este reintento
-            $usuarioExistente->nombre = $request->nombre;
-            $usuarioExistente->password_hash = bcrypt($request->password);
-            $usuarioExistente->rol = $request->rol;
-            $usuarioExistente->codigo_verificacion = $nuevoCodigo;
-            $usuarioExistente->save();
-
-            // Reenviamos el correo con el nuevo código usando Resend
-            Mail::to($usuarioExistente->correo)->send(new CodigoVerificacionMail($usuarioExistente->nombre, $nuevoCodigo));
-
             return response()->json([
-                'message' => 'Detectamos un registro previo pendiente. Hemos reenviado un nuevo código a tu correo.',
-                'correo' => $usuarioExistente->correo
-            ], 200); // Retornamos 200 (Éxito de reenvío)
+                'message' => 'Este correo ya se encuentra registrado. Por favor, intenta iniciar sesión.'
+            ], 422);
         }
 
-        // CASO C: El usuario es completamente NUEVO (Primer intento)
+        // Crear usuario nuevo con estado Inactivo
         $codigoObtenido = rand(100000, 999999);
 
-        $usuario = new User();
-        $usuario->nombre = $request->nombre;
-        $usuario->correo = $request->correo;
-        $usuario->password_hash = bcrypt($request->password);
-        $usuario->rol = $request->rol;
-        $usuario->estado = 'Inactivo'; 
-        $usuario->codigo_verificacion = $codigoObtenido; 
-        $usuario->fecha_registro = now();
-        $usuario->save();
+        $usuario = User::create([
+            'nombre' => $request->nombre,
+            'correo' => $request->correo,
+            'password_hash' => Hash::make($request->password),
+            'rol' => 'Cliente',
+            'estado' => 'Inactivo',
+            'codigo_verificacion' => $codigoObtenido,
+            'fecha_registro' => now(),
+        ]);
 
-        // Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $codigoObtenido));
+        // Enviar correo de verificación
+        Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $codigoObtenido));
 
         return response()->json([
             'message' => 'Usuario registrado. Por favor, verifica tu correo electrónico.',
@@ -76,29 +59,123 @@ class UsuarioController extends Controller
     {
         $request->validate([
             'correo' => 'required|email',
-            'codigo' => 'required|numeric',
+            'codigo' => 'required|numeric|digits:6',
         ]);
 
-        // Buscamos al usuario que coincida con el correo y el código
         $usuario = User::where('correo', $request->correo)
                        ->where('codigo_verificacion', $request->codigo)
                        ->first();
 
         if (!$usuario) {
-            return response()->json(['message' => 'El código es incorrecto o ya expiró.'], 422);
+            return response()->json([
+                'message' => 'El código es incorrecto o ya expiró.'
+            ], 422);
         }
 
-        // Si coincide, lo activamos y borramos el código para que no se use de nuevo
+        // Activar usuario y eliminar código
         $usuario->estado = 'Activo';
-        $usuario->codigo_verificacion = null; 
+        $usuario->codigo_verificacion = null;
         $usuario->save();
 
-        // OPCIONAL: Aquí podrías disparar tu "BienvenidaMail" original si quieres
-        // Mail::to($usuario->correo)->send(new BienvenidaMail($usuario));
+        // Enviar bienvenida
+        Mail::to($usuario->correo)->send(new BienvenidaMail($usuario));
 
         return response()->json([
             'message' => '¡Cuenta verificada con éxito! Ya puedes iniciar sesión.',
-            'usuario' => $usuario
+            'usuario' => [
+                'id' => $usuario->id,
+                'nombre' => $usuario->nombre,
+                'correo' => $usuario->correo,
+            ]
+        ], 200);
+    }
+
+    // 3. Login del usuario (solo si está activo)
+    public function login(Request $request)
+    {
+        $request->validate([
+            'correo' => 'required|email',
+            'password' => 'required|string|min:6'
+        ]);
+
+        // Buscar usuario por correo (sin filtrar por estado)
+        $usuario = User::where('correo', $request->correo)->first();
+
+        // Validar que existe y contraseña correcta
+        if (!$usuario || !Hash::check($request->password, $usuario->password_hash)) {
+            return response()->json([
+                'message' => 'Correo electrónico y/o contraseña incorrectos.'
+            ], 401);
+        }
+
+        // CASO A: Usuario INACTIVO - Regenerar código de verificación
+        if ($usuario->estado === 'Inactivo') {
+            $nuevoCodigo = rand(100000, 999999);
+            $usuario->codigo_verificacion = $nuevoCodigo;
+            $usuario->save();
+
+            // Enviar nuevo código
+            Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $nuevoCodigo));
+
+            return response()->json([
+                'message' => 'Tu cuenta aún no ha sido verificada. Hemos reenviado un código a tu correo.',
+                'correo' => $usuario->correo
+            ], 200);
+        }
+
+        // CASO B: Usuario ACTIVO - Devolver token
+        $token = $usuario->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesión iniciada correctamente.',
+            'user' => [
+                'id' => $usuario->id,
+                'nombre' => $usuario->nombre,
+                'correo' => $usuario->correo,
+                'rol' => $usuario->rol
+            ],
+            'token' => $token
+        ], 200);
+    }
+
+    /**
+     * REENVIAR CÓDIGO: Permite al usuario solicitar un nuevo código de verificación
+     * Solo funciona si la cuenta está INACTIVA
+     */
+    public function reenviarCodigo(Request $request)
+    {
+        $request->validate([
+            'correo' => 'required|email',
+        ]);
+
+        $usuario = User::where('correo', $request->correo)->first();
+
+        // Validar que el usuario exista
+        if (!$usuario) {
+            return response()->json([
+                'message' => 'No encontramos una cuenta con este correo electrónico.'
+            ], 404);
+        }
+
+        // Validar que la cuenta esté INACTIVA (no verificada)
+        if ($usuario->estado === 'Activo') {
+            return response()->json([
+                'message' => 'Tu cuenta ya está verificada. Por favor, inicia sesión.'
+            ], 422);
+        }
+
+        // Generar nuevo código
+        $nuevoCodigo = rand(100000, 999999);
+        $usuario->codigo_verificacion = $nuevoCodigo;
+        $usuario->save();
+
+        // Enviar correo con nuevo código
+        Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $nuevoCodigo));
+
+        return response()->json([
+            'message' => 'Hemos reenviado el código de verificación a tu correo.',
+            'correo' => $usuario->correo
         ], 200);
     }
 
