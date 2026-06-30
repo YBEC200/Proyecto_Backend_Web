@@ -38,6 +38,7 @@ Route::get('/login', function () {
 //Clientes se registran por la app movil, no hay registro público para ellos
 Route::post('/login', [UsuarioController::class, 'login']);
 Route::post('/register', [UsuarioController::class, 'store']);
+Route::post('/verify-code', [UsuarioController::class, 'verificarCodigo']);
 
 // Endpoint para solicitar recuperación de contraseña
 Route::post('/forgot-password', [PasswordController::class, 'forgotPassword']);
