@@ -30,10 +30,8 @@ use App\Http\Controllers\PasswordController;
 |
 */
 Route::get('/login', function () {
-    return response()->json([
-        'message' => 'Este endpoint solo acepta POST'
-    ], 405);
-});
+    return response()->json(['message' => 'No autenticado. Usa POST /login para iniciar sesión.'], 401);
+})->name('login');
 
 //Clientes se registran por la app movil, no hay registro público para ellos
 Route::post('/login', [UsuarioController::class, 'login']);
