@@ -14,7 +14,7 @@
                     <tr>
                         <td align="center" style="padding:30px;">
                             <img
-                                src="img/CDT.png"
+                                src="{{ config('app.url') }}/img/CDT.png"
                                 alt="Logo"
                                 width="100"
                                 style="max-width:100%;display:block;border-radius:10px;">
