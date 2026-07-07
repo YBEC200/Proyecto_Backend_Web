@@ -82,7 +82,11 @@ class UsuarioController extends Controller
         $usuario->save();
 
         // Enviar bienvenida
-        Mail::to($usuario->correo)->send(new BienvenidaMail($usuario));
+        app(BrevoMailer::class)->send(
+            new BienvenidaMail($usuario),
+            $usuario->correo,
+            $usuario->nombre
+        );
 
         return response()->json([
             'message' => '¡Cuenta verificada con éxito! Ya puedes iniciar sesión.',
@@ -119,7 +123,11 @@ class UsuarioController extends Controller
             $usuario->save();
 
             // Enviar nuevo código
-            Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $nuevoCodigo));
+            app(BrevoMailer::class)->send(
+                new CodigoVerificacionMail($usuario->nombre, $nuevoCodigo),
+                $usuario->correo,
+                $usuario->nombre
+            );
 
             return response()->json([
                 'message' => 'Tu cuenta aún no ha sido verificada. Hemos reenviado un código a tu correo.',
@@ -175,7 +183,11 @@ class UsuarioController extends Controller
         $usuario->save();
 
         // Enviar correo con nuevo código
-        Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $nuevoCodigo));
+        app(BrevoMailer::class)->send(
+            new CodigoVerificacionMail($usuario->nombre, $nuevoCodigo),
+            $usuario->correo,
+            $usuario->nombre
+        );
 
         return response()->json([
             'message' => 'Hemos reenviado el código de verificación a tu correo.',
