@@ -23,6 +23,22 @@ class LoteController extends Controller
             $query->where('Lote', 'like', '%' . $request->input('lote') . '%');
         }
 
+        // Filtrar por precio de compra
+        if ($request->filled('min_precio')) {
+            $query->where('Precio_Compra', '>=', (float) $request->input('min_precio'));
+        }
+        if ($request->filled('max_precio')) {
+            $query->where('Precio_Compra', '<=', (float) $request->input('max_precio'));
+        }
+
+        // Filtrar por rango de fechas
+        if ($request->filled('start_date')) {
+            $query->where('Fecha_Registro', '>=', $request->input('start_date'));
+        }
+        if ($request->filled('end_date')) {
+            $query->where('Fecha_Registro', '<=', $request->input('end_date'));
+        }
+
         // Rango de cantidad
         if ($request->filled('min_cantidad')) {
             $query->where('Cantidad', '>=', (int) $request->input('min_cantidad'));
@@ -54,6 +70,7 @@ class LoteController extends Controller
         $validated = $request->validate([
             'Lote' => 'required|string|max:80',
             'Id_Producto' => 'required|integer|exists:productos,id',
+            'Precio_Compra' => 'nullable|numeric|min:0',
             'Fecha_Registro' => 'nullable|date',
             'Cantidad' => 'nullable|integer|min:0',
             'Estado' => 'nullable|in:Activo,Inactivo',
@@ -81,6 +98,7 @@ class LoteController extends Controller
         $validated = $request->validate([
             'Lote'           => 'sometimes|required|string|max:80',
             'Fecha_Registro' => 'sometimes|nullable|date',
+            'Precio_Compra'  => 'sometimes|nullable|numeric|min:0',
             'Cantidad'       => 'sometimes|required|integer|min:0',
             'Estado'         => ['sometimes','required','string','in:Activo,Inactivo'],
         ]);

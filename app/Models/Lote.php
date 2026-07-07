@@ -22,6 +22,7 @@ class Lote extends Model
     protected $fillable = [
         'Lote',
         'Id_Producto',
+        'Precio_Compra',
         'Fecha_Registro',
         'Cantidad',
         'Estado',
@@ -31,6 +32,7 @@ class Lote extends Model
     protected $casts = [
         'Fecha_Registro' => 'date',
         'Cantidad' => 'integer',
+        'Precio_Compra' => 'decimal:2',
         'Estado' => 'string', // Cambia a 'string' si es enum
     ];
 
