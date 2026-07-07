@@ -7,6 +7,7 @@
     "require": {
         "php": "^8.0.2",
         "cloudinary-labs/cloudinary-laravel": "^2.1",
+        "getbrevo/brevo-php": "^5.0",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.19",
         "laravel/sanctum": "^3.3",
@@ -59,7 +60,8 @@
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {
-            "pestphp/pest-plugin": true
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
         }
     },
     "minimum-stability": "stable",
