@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Mail\RecuperarContraseñaMail;
+use App\Services\BrevoMailer;
 
 class PasswordController extends Controller
 {
@@ -45,7 +46,11 @@ class PasswordController extends Controller
 
         // Enviar email
         try {
-            Mail::to($user->correo)->send(new RecuperarContraseñaMail($user, $enlace));
+            app(BrevoMailer::class)->send(
+                new RecuperarContraseñaMail($user, $enlace),
+                $user->correo,
+                $user->nombre
+            );
             
             \Log::info('Email de recuperación de contraseña enviado', [
                 'usuario_id' => $user->id,

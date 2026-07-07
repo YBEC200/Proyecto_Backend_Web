@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Sell;
 use App\Mail\CodigoVerificacionMail;
 use App\Mail\BienvenidaMail;
+use App\Services\BrevoMailer;
 
 class UsuarioController extends Controller
 {
@@ -46,8 +47,11 @@ class UsuarioController extends Controller
         ]);
 
         // Enviar correo de verificación
-        Mail::to($usuario->correo)->send(new CodigoVerificacionMail($usuario->nombre, $codigoObtenido));
-
+        app(BrevoMailer::class)->send(
+            new CodigoVerificacionMail($usuario->nombre, $codigoObtenido),
+            $usuario->correo,
+            $usuario->nombre
+        );
         return response()->json([
             'message' => 'Usuario registrado. Por favor, verifica tu correo electrónico.',
             'correo' => $usuario->correo

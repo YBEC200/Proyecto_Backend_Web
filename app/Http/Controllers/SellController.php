@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 use App\Services\NubeFactService;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ReciboCompraMail;
-
+use App\Services\BrevoMailer;
 
 class SellController extends Controller
 {
@@ -470,7 +470,11 @@ class SellController extends Controller
             $codigoUnico = 'VENTA-' . $sell->getKey();
             try {
                 $sell->load(['user', 'details.product']);
-                \Mail::to($sell->user->correo)->send(new \App\Mail\ReciboCompraMail($sell->user, $sell));
+                App(BrevoMailer::class)->send(
+                    new \App\Mail\ReciboCompraMail($sell->user, $sell),
+                    $sell->user->correo,
+                    $sell->user->nombre
+                );
                 \Log::info('Email de recibo enviado', ['venta_id' => $sell->Id]);
             } catch (\Exception $e) {
                 \Log::error('Error al enviar email de recibo', [
