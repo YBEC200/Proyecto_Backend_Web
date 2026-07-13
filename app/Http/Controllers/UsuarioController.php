@@ -210,8 +210,8 @@ class UsuarioController extends Controller
             'nombre' => 'sometimes|string|max:255',
             'correo' => 'sometimes|email|max:255|unique:users,correo,' . $id,
             'password' => 'sometimes|string|min:6|confirmed',
-            'rol' => 'sometimes|string|in:admin,user', // ajusta roles permitidos según tu app
-            'estado' => 'sometimes|in:activo,inactivo,pendiente' // ajusta estados si hace falta
+            'rol' => 'sometimes|string|in:Administrador,Empleado,Cliente', // ajusta roles permitidos según tu app
+            'estado' => 'sometimes|in:Activo,Inactivo,Pendiente' // ajusta estados si hace falta
         ];
 
         $validator = Validator::make($data, $rules);

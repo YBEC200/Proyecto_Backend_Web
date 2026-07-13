@@ -66,7 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/usuarios', [UsuarioController::class, 'index']);
     Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
-    Route::patch('/usuarios/{id}', [UsuarioController::class, 'update']);
+    Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
     Route::get('/usuarios/{id}/can-delete', [UsuarioController::class, 'canDelete']);
 
     Route::get('/productos', [ProductController::class, 'index']);
