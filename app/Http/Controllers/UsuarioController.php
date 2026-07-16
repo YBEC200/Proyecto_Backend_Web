@@ -58,6 +58,50 @@ class UsuarioController extends Controller
         ], 201);
     }
 
+    // 1.2. Crer un usuario desde el apartado del administrador, tambien enviar un verificacion por correo
+    public function adminstore(Request $request)
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:150',
+            'correo' => 'required|email|max:150',
+            'password' => 'required|string|min:6|confirmed',
+            'rol' => 'required|string|in:Administrador,Empleado,Cliente',
+        ])
+
+        // Verificar si el correo ya existe (sea activo o inactivo)
+        $usuarioExistente = User::where('correo', $request->correo)->first();
+
+        if ($usuarioExistente) {
+            return response()->json([
+                'message' => 'Este correo ya se encuentra registrado. Por favor, intenta iniciar sesión.'
+            ], 422);
+        }
+
+        // Crear usuario nuevo con estado Inactivo
+        $codigoObtenido = rand(100000, 999999);
+
+        $usuario = User::create([
+            'nombre' => $request->nombre,
+            'correo' => $request->correo,
+            'password_hash' => Hash::make($request->password),
+            'rol' => $request->$rol,
+            'estado' => 'Inactivo',
+            'codigo_verificacion' => $codigoObtenido,
+            'fecha_registro' => now(),
+        ]);
+        
+        // Enviar correo de verificación
+        app(BrevoMailer::class)->send(
+            new CodigoVerificacionMail($usuario->nombre, $codigoObtenido),
+            $usuario->correo,
+            $usuario->nombre
+        );
+        return response()->json([
+            'message' => 'Usuario registrado. Por favor, verifica tu correo electrónico.',
+            'correo' => $usuario->correo
+        ], 201);
+    }
+
     // 2. Confirmación del código (Activa al usuario)
     public function verificarCodigo(Request $request)
     {
