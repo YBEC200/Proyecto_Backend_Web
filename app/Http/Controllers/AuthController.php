@@ -27,18 +27,39 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // CASO A: Usuario INACTIVO - Regenerar código de verificación
+        if ($usuario->estado === 'Inactivo') {
+            $nuevoCodigo = rand(100000, 999999);
+            $usuario->codigo_verificacion = $nuevoCodigo;
+            $usuario->save();
+
+            // Enviar nuevo código
+            app(BrevoMailer::class)->send(
+                new CodigoVerificacionMail($user->nombre, $nuevoCodigo),
+                $user->correo,
+                $user->nombre
+            );
+
+            return response()->json([
+                'message' => 'Tu cuenta aún no ha sido verificada. Hemos reenviado un código a tu correo.',
+                'correo' => $usuario->correo
+            ], 200);
+        }
+
+        // CASO B: Usuario ACTIVO - Devolver token
+        $token = $usuario->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'success' => true,
+            'message' => 'Sesión iniciada correctamente.',
             'user' => [
-                'id' => $user->id,
-                'nombre' => $user->nombre,
-                'correo' => $user->correo,
-                'rol' => $user->rol
+                'id' => $usuario->id,
+                'nombre' => $usuario->nombre,
+                'correo' => $usuario->correo,
+                'rol' => $usuario->rol
             ],
             'token' => $token
-        ]);
+        ], 200);
     }
 
     public function adminLogout(Request $request)
