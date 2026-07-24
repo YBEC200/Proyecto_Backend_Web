@@ -88,6 +88,7 @@ class LoteController extends Controller
         return response()->json(['message' => 'Lote creado', 'lote' => $lote], 201);
     }
 
+    // Actualizar lote
     public function update(Request $request, $id)
     {
         $lote = Lote::find($id);
@@ -105,7 +106,7 @@ class LoteController extends Controller
 
         try {
             // solo asignar campos permitidos
-            $allowed = array_intersect_key($validated, array_flip(['Lote','Fecha_Registro','Cantidad','Estado']));
+            $allowed = array_intersect_key($validated, array_flip(['Lote','Fecha_Registro','Cantidad','Estado','Precio_Compra']));
             $lote->fill($allowed);
             $lote->save();
 
