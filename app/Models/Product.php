@@ -23,12 +23,14 @@ class Product extends Model
         'costo_unit',
         'imagen_path',
         'fecha_registro',
-        'lotes'
+        'lotes',
+        'cantidad_product'  // ← Agrega esto
     ];
 
     protected $casts = [
         'costo_unit' => 'float',
         'lotes' => 'integer',
+        'cantidad_product' => 'integer', 
         'fecha_registro' => 'datetime',
     ];
 
