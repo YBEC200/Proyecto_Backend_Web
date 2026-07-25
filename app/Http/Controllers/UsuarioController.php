@@ -66,7 +66,7 @@ class UsuarioController extends Controller
             'correo' => 'required|email|max:150',
             'password' => 'required|string|min:6|confirmed',
             'rol' => 'required|string|in:Administrador,Empleado,Cliente',
-        ])
+        ]);
 
         // Verificar si el correo ya existe (sea activo o inactivo)
         $usuarioExistente = User::where('correo', $request->correo)->first();
