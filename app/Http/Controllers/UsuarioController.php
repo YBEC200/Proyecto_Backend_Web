@@ -84,7 +84,7 @@ class UsuarioController extends Controller
             'nombre' => $request->nombre,
             'correo' => $request->correo,
             'password_hash' => Hash::make($request->password),
-            'rol' => $request->$rol,
+            'rol' => $request->rol,
             'estado' => 'Inactivo',
             'codigo_verificacion' => $codigoObtenido,
             'fecha_registro' => now(),

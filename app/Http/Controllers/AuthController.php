@@ -28,10 +28,10 @@ class AuthController extends Controller
         }
 
         // CASO A: Usuario INACTIVO - Regenerar código de verificación
-        if ($usuario->estado === 'Inactivo') {
+        if ($user->estado === 'Inactivo') {
             $nuevoCodigo = rand(100000, 999999);
-            $usuario->codigo_verificacion = $nuevoCodigo;
-            $usuario->save();
+            $user->codigo_verificacion = $nuevoCodigo;
+            $user->save();
 
             // Enviar nuevo código
             app(BrevoMailer::class)->send(
@@ -42,21 +42,21 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Tu cuenta aún no ha sido verificada. Hemos reenviado un código a tu correo.',
-                'correo' => $usuario->correo
+                'correo' => $user->correo
             ], 200);
         }
 
         // CASO B: Usuario ACTIVO - Devolver token
-        $token = $usuario->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'success' => true,
             'message' => 'Sesión iniciada correctamente.',
             'user' => [
-                'id' => $usuario->id,
-                'nombre' => $usuario->nombre,
-                'correo' => $usuario->correo,
-                'rol' => $usuario->rol
+                'id' => $user->id,
+                'nombre' => $user->nombre,
+                'correo' => $user->correo,
+                'rol' => $user->rol
             ],
             'token' => $token
         ], 200);
