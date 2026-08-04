@@ -37,6 +37,7 @@ Route::get('/login', function () {
 Route::post('/login', [UsuarioController::class, 'login']);
 Route::post('/register', [UsuarioController::class, 'store']);
 Route::post('/verify-code', [UsuarioController::class, 'verificarCodigo']);
+Route::post('/resend-code', [UsuarioController::class, 'reenviarCodigo']);
 
 // Endpoint para solicitar recuperación de contraseña
 Route::post('/forgot-password', [PasswordController::class, 'forgotPassword']);
