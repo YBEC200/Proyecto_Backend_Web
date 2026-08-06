@@ -10,11 +10,16 @@ use App\Models\DetailSell;
 
 class ProductController extends Controller
 {
-    // Listar productos con filtros
+    // Listar productos con filtros Y PAGINACIÓN
     public function index(Request $request)
     {
+        // Obtener la página (por defecto 1) y tamaño de página (por defecto 10)
+        $page = $request->integer('page', 1);
+        $perPage = 10; // Mostrar 10 productos por página
+        $offset = ($page - 1) * $perPage;
+    
         $query = Product::with(['categoria', 'lote']);
-
+    
         if ($request->filled('nombre')) {
             $query->where('nombre', 'like', '%' . $request->nombre . '%');
         }
@@ -30,23 +35,42 @@ class ProductController extends Controller
         if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
         }
-
-        try {
-            $productos = $query->get()->map(function ($producto) {
-                $producto->categoria_nombre = $producto->categoria ? $producto->categoria->Nombre : null;
-                
-                // Mejorado: verificar si lote existe y tiene elementos
-                if ($producto->lote && $producto->lote->count() > 0) {
-                    $ultimoLote = $producto->lote->sortByDesc('Fecha_Registro')->first();
-                    $producto->fecha_ultimo_lote = $ultimoLote ? $ultimoLote->Fecha_Registro : null;
-                } else {
-                    $producto->fecha_ultimo_lote = null;
-                }
-                
-                return $producto;
-            });
     
-            return response()->json($productos);
+        try {
+            // Obtener el total ANTES de paginar (para saber cuántas páginas hay)
+            $total = $query->count();
+            
+            // Paginar: obtener solo 10 registros de la página actual
+            $productos = $query
+                ->orderBy('id', 'asc')
+                ->offset($offset)
+                ->limit($perPage)
+                ->get()
+                ->map(function ($producto) {
+                    $producto->categoria_nombre = $producto->categoria ? $producto->categoria->Nombre : null;
+                    
+                    if ($producto->lote && $producto->lote->count() > 0) {
+                        $ultimoLote = $producto->lote->sortByDesc('Fecha_Registro')->first();
+                        $producto->fecha_ultimo_lote = $ultimoLote ? $ultimoLote->Fecha_Registro : null;
+                    } else {
+                        $producto->fecha_ultimo_lote = null;
+                    }
+                    
+                    return $producto;
+                });
+    
+            // Retornar productos + metadata de paginación
+            return response()->json([
+                'data' => $productos,
+                'pagination' => [
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'total' => $total,
+                    'total_pages' => ceil($total / $perPage),
+                    'has_next' => $page < ceil($total / $perPage),
+                    'has_prev' => $page > 1,
+                ]
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener productos',
