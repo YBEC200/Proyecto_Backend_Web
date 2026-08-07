@@ -12,18 +12,21 @@ class LoteController extends Controller
     // Listar lotes con filtros
     public function index(Request $request)
     {
+        // Obtener la página (por defecto 1) y tamaño de página (por defecto 10)
+        $page = max($request->integer('page', 1), 1);
+        $perPage = 10;
+        $offset = ($page - 1) * $perPage;
+
         $query = Lote::with('producto');
 
         if ($request->filled('product_id')) {
             $query->where('Id_Producto', $request->input('product_id'));
         }
 
-        // Filtrar por nombre del lote (parcial)
         if ($request->filled('lote')) {
             $query->where('Lote', 'like', '%' . $request->input('lote') . '%');
         }
 
-        // Filtrar por precio de compra
         if ($request->filled('min_precio')) {
             $query->where('Precio_Compra', '>=', (float) $request->input('min_precio'));
         }
@@ -31,7 +34,6 @@ class LoteController extends Controller
             $query->where('Precio_Compra', '<=', (float) $request->input('max_precio'));
         }
 
-        // Filtrar por rango de fechas
         if ($request->filled('start_date')) {
             $query->where('Fecha_Registro', '>=', $request->input('start_date'));
         }
@@ -39,7 +41,6 @@ class LoteController extends Controller
             $query->where('Fecha_Registro', '<=', $request->input('end_date'));
         }
 
-        // Rango de cantidad
         if ($request->filled('min_cantidad')) {
             $query->where('Cantidad', '>=', (int) $request->input('min_cantidad'));
         }
@@ -47,12 +48,10 @@ class LoteController extends Controller
             $query->where('Cantidad', '<=', (int) $request->input('max_cantidad'));
         }
 
-        // Estado exacto (si se desea case-insensitive, normalizar)
         if ($request->filled('estado')) {
             $query->where('Estado', $request->input('estado'));
         }
 
-        // Filtrar por nombre del producto relacionado (parcial)
         if ($request->filled('product_name')) {
             $name = $request->input('product_name');
             $query->whereHas('producto', function ($q) use ($name) {
@@ -60,8 +59,32 @@ class LoteController extends Controller
             });
         }
 
-        $lotes = $query->orderBy('Lote', 'desc')->get();
-        return response()->json($lotes, 200);
+        try {
+            $total = $query->count();
+
+            $lotes = $query
+                ->orderBy('Id', 'desc')
+                ->offset($offset)
+                ->limit($perPage)
+                ->get();
+
+            return response()->json([
+                'data' => $lotes,
+                'pagination' => [
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'total' => $total,
+                    'total_pages' => (int) ceil($total / $perPage),
+                    'has_next' => $page < ceil($total / $perPage),
+                    'has_prev' => $page > 1,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener lotes',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // Crear lote
