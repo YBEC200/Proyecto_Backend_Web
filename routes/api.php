@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/usuarios/{id}/can-delete', [UsuarioController::class, 'canDelete']);
 
     Route::get('/productos', [ProductController::class, 'index']);
+    Route::get('/productos/buscar-para-venta', [ProductController::class, 'buscarParaVenta']);
     Route::post('/productos', [ProductController::class, 'store']);
     Route::put('/productos/{id}', [ProductController::class, 'update']);    // <-- Asegúrate de tener esta línea
     Route::delete('/productos/{id}', [ProductController::class, 'destroy']);
