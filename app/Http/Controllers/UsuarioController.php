@@ -243,52 +243,58 @@ class UsuarioController extends Controller
     //Se actualizara solo los campos enviados, no es necesario enviar todos los campos para actualizar
     public function update(Request $request, $id)
     {
+        // Buscar usuario
         $usuario = User::find($id);
         if (!$usuario) {
-            return response()->json(['message' => 'Usuario no encontrado.'], 404);
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado.'], 404);
         }
 
-        $data = $request->only(['nombre', 'correo', 'password', 'rol', 'estado']);
+        // Solo aceptar nombre y correo desde el formulario
+        $data = $request->only(['nombre', 'correo']);
 
         $rules = [
-            'nombre' => 'sometimes|string|max:255',
-            'correo' => 'sometimes|email|max:255|unique:users,correo,' . $id,
-            'password' => 'sometimes|string|min:6|confirmed',
-            'rol' => 'sometimes|string|in:Administrador,Empleado,Cliente', // ajusta roles permitidos según tu app
-            'estado' => 'sometimes|in:Activo,Inactivo,Pendiente' // ajusta estados si hace falta
+            'nombre' => 'required|string|max:255',
+            // unique:users,correo,<id> para excluir el propio registro
+            'correo' => 'required|email|max:255|unique:users,correo,' . $id,
         ];
 
-        $validator = Validator::make($data, $rules);
+        $messages = [
+            'nombre.required' => 'El nombre es obligatorio.',
+            'nombre.max' => 'El nombre no puede tener más de 255 caracteres.',
+            'correo.required' => 'El correo es obligatorio.',
+            'correo.email' => 'El correo debe ser una dirección válida.',
+            'correo.unique' => 'El correo ya está en uso por otro usuario.',
+            'correo.max' => 'El correo no puede exceder 255 caracteres.',
+        ];
+
+        $validator = Validator::make($data, $rules, $messages);
+
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        if (array_key_exists('nombre', $data)) {
+        try {
+            // Solo asignar los campos permitidos
             $usuario->nombre = $data['nombre'];
-        }
-
-        if (array_key_exists('correo', $data)) {
             $usuario->correo = $data['correo'];
+            $usuario->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario actualizado correctamente.',
+                'usuario' => $usuario
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error actualizando usuario: ' . $e->getMessage(), ['user_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno al actualizar el usuario.'
+            ], 500);
         }
-
-        if (array_key_exists('rol', $data)) {
-            $usuario->rol = $data['rol'];
-        }
-
-        if (array_key_exists('estado', $data)) {
-            $usuario->estado = $data['estado'];
-        }
-
-        if (array_key_exists('password', $data) && !empty($data['password'])) {
-            $usuario->password_hash = bcrypt($data['password']);
-        }
-
-        $usuario->save();
-
-        return response()->json([
-            'message' => 'Usuario actualizado correctamente.',
-            'usuario' => $usuario
-        ], 200);
     }
 
     // Listar usuarios con filtros
