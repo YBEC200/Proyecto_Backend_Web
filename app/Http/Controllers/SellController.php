@@ -29,43 +29,68 @@ class SellController extends Controller
      * - fecha_fin: YYYY-MM-DD (rango de fechas)
      * - no se deben incluir los que tienen estado 'En Revision'
      */
+    public function stats(Request $request)
+    {
+        $base = Sell::where('estado', '!=', 'En Revision');
+        $total = (clone $base)->count();
+        $pendientes = (clone $base)->where('estado','Pendiente')->count();
+        $entregados = (clone $base)->where('estado','Entregado')->count();
+        $cancelados = (clone $base)->where('estado','Cancelado')->count();
+    
+        return response()->json([
+            'total' => $total,
+            'pendientes' => $pendientes,
+            'entregados' => $entregados,
+            'cancelados' => $cancelados,
+        ], 200);
+    }
+    
     public function index(Request $request)
     {
-        $query = Sell::with(['user:id,nombre,correo,rol,estado', 'direction:id,ciudad,calle,referencia', 'details.product:id,nombre,costo_unit', 'details.detailLotes.lote:Id,Lote,Fecha_Registro,Cantidad,Estado']);
-
-        // Filtrar por estado 'En Revision'
-        $query->where('estado', '!=', 'En Revision');
-
-        // Filtrar por estado
-        if ($request->has('estado') && !empty($request->estado)) {
+        $page = $request->integer('page', 1);
+        $perPage = $request->integer('per_page', 10);
+    
+        $query = Sell::with([
+            'user:id,nombre,correo,rol,estado',
+            'direction:id,ciudad,calle,referencia',
+            'details.product:id,nombre,costo_unit',
+            'details.detailLotes.lote:Id,Lote,Fecha_Registro,Cantidad,Estado'
+        ])->where('estado', '!=', 'En Revision');
+    
+        // Filtros (igual que ya tienes)
+        if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
         }
-
-        // Filtrar por nombre del cliente
-        if ($request->has('nombre_cliente') && !empty($request->nombre_cliente)) {
+        if ($request->filled('nombre_cliente')) {
             $query->whereHas('user', function ($q) use ($request) {
                 $q->where('nombre', 'like', '%' . $request->nombre_cliente . '%')
                   ->orWhere('correo', 'like', '%' . $request->nombre_cliente . '%');
             });
         }
-
-        // Filtrar por fecha exacta
-        if ($request->has('fecha') && !empty($request->fecha)) {
+        if ($request->filled('fecha')) {
             $query->whereDate('fecha', $request->fecha);
         }
-
-        // Filtrar por rango de fechas
-        if ($request->has('fecha_inicio') && !empty($request->fecha_inicio)) {
+        if ($request->filled('fecha_inicio')) {
             $query->whereDate('fecha', '>=', $request->fecha_inicio);
         }
-        if ($request->has('fecha_fin') && !empty($request->fecha_fin)) {
+        if ($request->filled('fecha_fin')) {
             $query->whereDate('fecha', '<=', $request->fecha_fin);
         }
-
-        // Ordenar por fecha descendente (más recientes primero)
-        $sells = $query->orderBy('fecha', 'desc')->get();
-
-        return response()->json($sells, 200);
+    
+        // Usamos paginate para obtener metadata automáticamente
+        $paginator = $query->orderBy('fecha', 'desc')->paginate($perPage, ['*'], 'page', $page);
+    
+        return response()->json([
+            'data' => $paginator->items(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'total_pages' => $paginator->lastPage(),
+                'has_next' => $paginator->hasMorePages(),
+                'has_prev' => $paginator->currentPage() > 1,
+            ]
+        ], 200);
     }
 
     /**
