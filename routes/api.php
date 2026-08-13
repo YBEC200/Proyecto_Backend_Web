@@ -93,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/lotes/{id}/can-delete', [LoteController::class, 'canDelete']);
 
     Route::get('/ventas', [SellController::class, 'index']);
+    Route::get('/ventas/stats', [SellController::class, 'stats']);
     Route::get('/ventas/{id}', [SellController::class, 'show']);
     Route::post('/ventas', [SellController::class, 'store']);
     Route::put('/ventas/{id}', [SellController::class, 'update']);
