@@ -17,37 +17,58 @@ class EstadisticasController extends Controller
      * Pie chart: categorías más vendidas (por cantidad)
      * Devuelve labels, data (cantidad) y porcentajes
      */
-    public function metodosPago(Request $request)
+
+    public function ventasEntregadasPorAnio(Request $request)
     {
-        $query = Sell::query();
+        $year = $request->integer('year', now()->year);
 
-        // filtros opcionales
-        if ($request->filled('fecha_inicio')) {
-            $query->whereDate('fecha', '>=', $request->fecha_inicio);
-        }
-        if ($request->filled('fecha_fin')) {
-            $query->whereDate('fecha', '<=', $request->fecha_fin);
-        }
-        if ($request->filled('year')) {
-            $query->whereYear('fecha', $request->year);
-        }
-        if ($request->filled('estado')) {
-            $query->where('estado', $request->estado);
-        }
-
-        // Agrupar por método de pago, dar nombre 'Desconocido' si es null/empty
-        $results = $query
-            ->selectRaw("COALESCE(NULLIF(TRIM(metodo_pago),''), 'Desconocido') as metodo")
-            ->selectRaw('COUNT(*) as total')
-            ->groupBy('metodo')
-            ->orderByDesc('total')
-            ->get();
+        $cantidad = Sell::where('estado', 'Entregado')
+            ->whereYear('fecha', $year)
+            ->count();
 
         return response()->json([
-            'labels' => $results->pluck('metodo'),
-            'data' => $results->pluck('total'),
-            'raw' => $results->values(), // arreglo {metodo, total}
-        ], 200);
+            'year' => $year,
+            'cantidad' => $cantidad,
+        ]);
+    }
+
+    public function clientesTop(Request $request)
+    {
+        $limit = min($request->integer('limit', 10), 50);
+
+        $clientes = Sell::query()
+            ->with('user:id,nombre')
+            ->selectRaw('Id_Usuario, COUNT(*) as total_compras')
+            ->where('estado', '!=', 'En Revision')
+            ->whereNotNull('Id_Usuario')
+            ->groupBy('Id_Usuario')
+            ->orderByDesc('total_compras')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($venta) => [
+                'id' => $venta->Id_Usuario,
+                'nombre' => $venta->user?->nombre ?? 'Sin cliente',
+                'count' => (int) $venta->total_compras,
+            ])
+            ->values();
+
+        return response()->json($clientes);
+    }
+
+    public function metodosPago()
+    {
+        $pagos = Sell::query()
+            ->selectRaw('metodo_pago, COUNT(*) as total')
+            ->where('estado', '!=', 'En Revision')
+            ->groupBy('metodo_pago')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($venta) => [
+                'metodo' => $venta->metodo_pago ?: 'Desconocido',
+                'count' => (int) $venta->total,
+            ]);
+
+        return response()->json($pagos);
     }
     
     public function categoriasMasVendidas()

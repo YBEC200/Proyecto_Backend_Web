@@ -59,6 +59,6 @@ class User extends Authenticatable
      */
     public function sells()
     {
-        return $this->hasMany(Sell::class, 'Id_Usuario', 'Id');
+        return $this->hasMany(Sell::class, 'Id_Usuario', 'id');
     }
 }

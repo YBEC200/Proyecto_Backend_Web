@@ -57,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/estadisticas/producto-mas-vendido', [EstadisticasController::class, 'productoMasVendido']);
     Route::get('/estadisticas/ganancias-anio/{year?}', [EstadisticasController::class, 'gananciasAnio']);
     Route::get('/estadisticas/total-ventas-mes/{month}/{year?}', [EstadisticasController::class, 'totalVentasMes']);
+    Route::get('/estadisticas/ventas-entregadas', [EstadisticasController::class, 'ventasEntregadasPorAnio']);
+    Route::get('/estadisticas/clientes-top', [EstadisticasController::class, 'clientesTop']);
+    Route::get('/estadisticas/metodos-pago', [EstadisticasController::class, 'metodosPago']);
 
     Route::get('/user', function (Request $request) {
         return $request->user();
