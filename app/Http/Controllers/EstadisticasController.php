@@ -17,6 +17,39 @@ class EstadisticasController extends Controller
      * Pie chart: categorías más vendidas (por cantidad)
      * Devuelve labels, data (cantidad) y porcentajes
      */
+    public function metodosPago(Request $request)
+    {
+        $query = Sell::query();
+
+        // filtros opcionales
+        if ($request->filled('fecha_inicio')) {
+            $query->whereDate('fecha', '>=', $request->fecha_inicio);
+        }
+        if ($request->filled('fecha_fin')) {
+            $query->whereDate('fecha', '<=', $request->fecha_fin);
+        }
+        if ($request->filled('year')) {
+            $query->whereYear('fecha', $request->year);
+        }
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Agrupar por método de pago, dar nombre 'Desconocido' si es null/empty
+        $results = $query
+            ->selectRaw("COALESCE(NULLIF(TRIM(metodo_pago),''), 'Desconocido') as metodo")
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('metodo')
+            ->orderByDesc('total')
+            ->get();
+
+        return response()->json([
+            'labels' => $results->pluck('metodo'),
+            'data' => $results->pluck('total'),
+            'raw' => $results->values(), // arreglo {metodo, total}
+        ], 200);
+    }
+    
     public function categoriasMasVendidas()
     {
         $rows = DB::table('detalle_venta')
