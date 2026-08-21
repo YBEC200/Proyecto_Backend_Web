@@ -82,7 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/productos/{producto}/imagenes', [ImagenController::class, 'store']);
     Route::get('/productos/{producto}/imagenes', [ImagenController::class, 'show']);
-    Route::delete('/imagenes-secundarias/{id}', [ImagenSecundariaController::class, 'destroy']);
+    Route::delete('/imagenes-secundarias/{id}', [ImagenController::class, 'destroy']);
 
     Route::get('/categorias', [CategoryController::class, 'index']);
     Route::post('/categorias', [CategoryController::class, 'store']);
