@@ -68,9 +68,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/logout', [AuthController::class, 'adminLogout']);
 
     Route::get('/usuarios', [UsuarioController::class, 'index']);
+    Route::post('/usuarios/adminstore', [UsuarioController::class, 'adminstore']);
     Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
     Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
+    Route::put('/usuarios/{id}/update-admin', [UsuarioController::class, 'updateAdmin']);
     Route::get('/usuarios/{id}/can-delete', [UsuarioController::class, 'canDelete']);
 
     Route::get('/productos', [ProductController::class, 'index']);

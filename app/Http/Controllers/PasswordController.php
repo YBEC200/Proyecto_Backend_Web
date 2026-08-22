@@ -42,7 +42,10 @@ class PasswordController extends Controller
         ]);
 
         // Generar enlace de recuperación
-        $enlace = config('app.url') . '/reset-password?token=' . $token . '&correo=' . $user->correo;
+        $enlace = config('app.frontend_url') . '/reset-password?' . http_build_query([
+            'token' => $token,
+            'correo' => $user->correo,
+        ]);
 
         // Enviar email
         try {

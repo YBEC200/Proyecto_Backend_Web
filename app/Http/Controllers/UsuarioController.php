@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use App\Models\User;
 use App\Models\Sell;
 use App\Mail\CodigoVerificacionMail;
@@ -64,7 +65,6 @@ class UsuarioController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:150',
             'correo' => 'required|email|max:150',
-            'password' => 'required|string|min:6|confirmed',
             'rol' => 'required|string|in:Administrador,Empleado,Cliente',
         ]);
 
@@ -83,7 +83,7 @@ class UsuarioController extends Controller
         $usuario = User::create([
             'nombre' => $request->nombre,
             'correo' => $request->correo,
-            'password_hash' => Hash::make($request->password),
+            'password_hash' => Hash::make('123456'), // Contraseña por defecto para el administrador, se recomienda cambiarla después
             'rol' => $request->rol,
             'estado' => 'Inactivo',
             'codigo_verificacion' => $codigoObtenido,
@@ -295,6 +295,53 @@ class UsuarioController extends Controller
                 'message' => 'Error interno al actualizar el usuario.'
             ], 500);
         }
+    }
+
+    public function updateAdmin(Request $request, $id)
+    {
+        $usuario = User::find($id);
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no encontrado.'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'nombre' => 'required|string|max:255',
+            'correo' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'correo')->ignore($usuario->id),
+            ],
+            'rol' => 'required|in:Administrador,Empleado,Cliente',
+            'estado' => 'required|in:Activo,Inactivo',
+        ], [
+            'nombre.required' => 'El nombre es obligatorio.',
+            'correo.required' => 'El correo es obligatorio.',
+            'correo.email' => 'El correo no es válido.',
+            'correo.unique' => 'El correo ya está en uso.',
+            'rol.in' => 'El rol no es válido.',
+            'estado.in' => 'El estado no es válido.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $usuario->update($validator->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario actualizado correctamente.',
+            'usuario' => $usuario,
+        ]);
     }
 
     // Listar usuarios con filtros

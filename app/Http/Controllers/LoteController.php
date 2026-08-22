@@ -101,7 +101,7 @@ class LoteController extends Controller
 
         // Defaults
         if (empty($validated['Fecha_Registro'])) {
-            $validated['Fecha_Registro'] = now()->toDateString();
+            $validated['Fecha_Registro'] = now();
         }
         $validated['Cantidad'] = $validated['Cantidad'] ?? 0;
         $validated['Estado'] = $validated['Estado'] ?? 'Activo';
