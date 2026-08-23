@@ -10,55 +10,44 @@ use App\Models\DetailSell;
 
 class ProductController extends Controller
 {
-
-    public function buscarParaVenta(Request $request)
+    public function catalogo()
     {
-        $request->validate([
-            'nombre' => 'nullable|string|min:1|max:100',
-            'limit' => 'nullable|integer|min:1|max:20',
+        $productos = Product::query()
+            ->select(['id', 'nombre'])
+            ->orderBy('nombre', 'asc')
+            ->get();
+
+        return response()->json([
+            'data' => $productos,
         ]);
+    }
 
-        $nombre = trim($request->input('nombre', ''));
-        $limit = (int) $request->input('limit', 10);
-
-        $query = Product::with(['categoria', 'lote'])
+    public function catalogoParaVenta()
+    {
+        $productos = Product::query()
             ->select([
                 'id',
                 'nombre',
                 'estado',
                 'costo_unit',
                 'cantidad_product',
-            ]);
-
-        if ($nombre !== '') {
-            $query->where('nombre', 'like', "%{$nombre}%");
-        }
-
-        $productos = $query
-            ->orderBy('nombre', 'asc')
-            ->limit($limit)
+            ])
+            ->orderBy('nombre')
             ->get()
             ->map(function ($producto) {
-                // Si el stock real depende de lotes, usa la suma de lotes activos
-                // Si ya tienes cantidad_product sincronizada, usa ese valor
                 $stock = (int) ($producto->cantidad_product ?? 0);
-
-                // Si quieres que la suma dependa realmente de los lotes:
-                // $stock = (int) $producto->lote()->sum('cantidad');
-
-                $agotado = $producto->estado === 'agotado' || $stock <= 0;
 
                 return [
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
                     'estado' => $producto->estado,
                     'precio' => (float) $producto->costo_unit,
-                    'cantidad' => $stock, // este es el stock usable para la venta
+                    'cantidad' => $stock,
                 ];
             });
 
         return response()->json([
-            'data' => $productos
+            'data' => $productos,
         ]);
     }
 
