@@ -44,7 +44,7 @@ Route::post('/forgot-password', [PasswordController::class, 'forgotPassword']);
 Route::post('/reset-password', [PasswordController::class, 'resetPassword']);
 
 // Endpoint para obtener productos con filtros para la app móvil, no necesita token porque es información pública
-Route::get('/movil/productos', [MovilController::class, 'indexMovil']);
+Route::get('/movil/productos', [MovilController::class, 'index']);
 
 // Administradores, no hay registro público para ellos
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
