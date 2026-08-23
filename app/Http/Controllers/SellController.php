@@ -45,6 +45,46 @@ class SellController extends Controller
         ], 200);
     }
     
+    public function indexMovil(Request $request)
+    {
+        $query = Sell::with(['user:id,nombre,correo,rol,estado', 'direction:id,ciudad,calle,referencia', 'details.product:id,nombre,costo_unit', 'details.detailLotes.lote:Id,Lote,Fecha_Registro,Cantidad,Estado']);
+
+        // Filtrar por estado 'En Revision'
+        $query->where('estado', '!=', 'En Revision');
+
+        // Filtrar por estado
+        if ($request->has('estado') && !empty($request->estado)) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Filtrar por nombre del cliente
+        if ($request->has('nombre_cliente') && !empty($request->nombre_cliente)) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->nombre_cliente . '%')
+                  ->orWhere('correo', 'like', '%' . $request->nombre_cliente . '%');
+            });
+        }
+
+        // Filtrar por fecha exacta
+        if ($request->has('fecha') && !empty($request->fecha)) {
+            $query->whereDate('fecha', $request->fecha);
+        }
+
+        // Filtrar por rango de fechas
+        if ($request->has('fecha_inicio') && !empty($request->fecha_inicio)) {
+            $query->whereDate('fecha', '>=', $request->fecha_inicio);
+        }
+        if ($request->has('fecha_fin') && !empty($request->fecha_fin)) {
+            $query->whereDate('fecha', '<=', $request->fecha_fin);
+        }
+
+        // Ordenar por fecha descendente (más recientes primero)
+        $sells = $query->orderBy('fecha', 'desc')->get();
+
+        return response()->json($sells, 200);
+    }
+
+
     public function index(Request $request)
     {
         $page = $request->integer('page', 1);
