@@ -46,6 +46,8 @@ class AuthController extends Controller
             ], 200);
         }
 
+        $user->tokens()->delete();
+
         // CASO B: Usuario ACTIVO - Devolver token
         $token = $user->createToken('auth_token')->plainTextToken;
 
