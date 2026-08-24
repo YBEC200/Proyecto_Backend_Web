@@ -69,18 +69,20 @@ class SellController extends Controller
             });
         }
         if ($request->filled('fecha')) {
-            $query->whereDate('fecha', $request->fecha);
+            $query->whereDate('Fecha', $request->fecha);
         }
+
         if ($request->filled('fecha_inicio')) {
-            $query->whereDate('fecha', '>=', $request->fecha_inicio);
+            $query->whereDate('Fecha', '>=', $request->fecha_inicio);
         }
+
         if ($request->filled('fecha_fin')) {
-            $query->whereDate('fecha', '<=', $request->fecha_fin);
+            $query->whereDate('Fecha', '<=', $request->fecha_fin);
         }
-    
-        // Usamos paginate para obtener metadata automáticamente
-        $paginator = $query->orderBy('fecha', 'desc')->paginate($perPage, ['*'], 'page', $page);
-    
+
+        $paginator = $query
+            ->orderBy('Fecha', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
         return response()->json([
             'data' => $paginator->items(),
             'pagination' => [
@@ -444,9 +446,7 @@ class SellController extends Controller
                                     ? 'Entregado'
                                     : 'Pendiente',
                 'tipo_entrega' => $validated['tipo_entrega'],
-                'qr_token'     => $validated['tipo_entrega'] === 'Envío a Domicilio'
-                                    ? \Str::uuid()
-                                    : null,
+                'qr_token'     => Str::uuid(),
             ]);
             /* =========================
             4️⃣ DETALLES + LOTES

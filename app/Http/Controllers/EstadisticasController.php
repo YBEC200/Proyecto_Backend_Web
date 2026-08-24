@@ -14,6 +14,76 @@ use App\Models\User;
 class EstadisticasController extends Controller
 {
     /**
+     * Ganancias totales de un año específico
+     * Query param: year (opcional, por defecto año actual)
+     * Devuelve total anual y desglose mensual
+     * Solo contar ventas con estado Entregado
+     */
+    public function gananciasAnio(Request $request, $year = null)
+    {
+        $year = $year ? (int) $year : (int) $request->query('year', date('Y'));
+
+        $totalAnual = Sell::whereYear('Fecha', $year)
+            ->where('estado', 'Entregado')
+            ->sum('Costo_Total');
+
+        $mensual = DB::table('ventas')
+            ->select(DB::raw('MONTH(Fecha) as month'), DB::raw('SUM(Costo_Total) as total'))
+            ->whereYear('Fecha', $year)
+            ->where('estado', 'Entregado')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->pluck('total', 'month');
+
+        // Asegurar tener 12 valores (meses)
+        $monthlyArray = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $monthlyArray[$m] = (float) ($mensual->get($m) ?? 0.0);
+        }
+
+        return response()->json([
+            'year' => $year,
+            'total_anual' => (float) $totalAnual,
+            'mensual' => $monthlyArray,
+        ]);
+    }    
+    /**
+     * Producto más vendido (por cantidad total vendida)
+     */
+    public function productoMasVendido()
+    {
+        $row = DB::table('detalle_venta')
+            ->join('productos', 'detalle_venta.Id_Producto', '=', 'productos.id')
+            ->select('productos.id', 'productos.nombre', DB::raw('SUM(detalle_venta.Cantidad) as total_vendido'))
+            ->groupBy('productos.id', 'productos.nombre')
+            ->orderByDesc('total_vendido')
+            ->first();
+
+        if (!$row) {
+            return response()->json(['message' => 'No hay ventas registradas'], 200);
+        }
+
+        return response()->json([
+            'product_id' => $row->id,
+            'product_name' => $row->nombre,
+            'total_vendido' => (int) $row->total_vendido,
+        ]);
+    }
+
+    /**
+     * Contador de usuarios con rol 'Cliente'
+     */
+    public function contarClientes()
+    {
+        $count = User::where('rol', 'Cliente')->count();
+        return response()->json([
+            'rol' => 'Cliente',
+            'cantidad' => $count,
+        ]);
+    }    
+
+    /**
      * Pie chart: categorías más vendidas (por cantidad)
      * Devuelve labels, data (cantidad) y porcentajes
      */
@@ -276,76 +346,6 @@ class EstadisticasController extends Controller
             'month' => (int) $month,
             'total_ventas' => $totalVentas,
         ]);
-    }
-
-    /**
-     * Ganancias totales de un año específico
-     * Query param: year (opcional, por defecto año actual)
-     * Devuelve total anual y desglose mensual
-     * Solo contar ventas con estado Entregado
-     */
-    public function gananciasAnio(Request $request, $year = null)
-    {
-        $year = $year ? (int) $year : (int) $request->query('year', date('Y'));
-
-        $totalAnual = Sell::whereYear('Fecha', $year)
-            ->sum('Costo_Total');
-
-        $mensual = DB::table('ventas')
-            ->select(DB::raw('MONTH(Fecha) as month'), DB::raw('SUM(Costo_Total) as total'))
-            ->whereYear('Fecha', $year)
-            ->where('estado', 'Entregado')
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get()
-            ->pluck('total', 'month');
-
-        // Asegurar tener 12 valores (meses)
-        $monthlyArray = [];
-        for ($m = 1; $m <= 12; $m++) {
-            $monthlyArray[$m] = (float) ($mensual->get($m) ?? 0.0);
-        }
-
-        return response()->json([
-            'year' => $year,
-            'total_anual' => (float) $totalAnual,
-            'mensual' => $monthlyArray,
-        ]);
-    }
-
-    /**
-     * Producto más vendido (por cantidad total vendida)
-     */
-    public function productoMasVendido()
-    {
-        $row = DB::table('detalle_venta')
-            ->join('productos', 'detalle_venta.Id_Producto', '=', 'productos.id')
-            ->select('productos.id', 'productos.nombre', DB::raw('SUM(detalle_venta.Cantidad) as total_vendido'))
-            ->groupBy('productos.id', 'productos.nombre')
-            ->orderByDesc('total_vendido')
-            ->first();
-
-        if (!$row) {
-            return response()->json(['message' => 'No hay ventas registradas'], 200);
-        }
-
-        return response()->json([
-            'product_id' => $row->id,
-            'product_name' => $row->nombre,
-            'total_vendido' => (int) $row->total_vendido,
-        ]);
-    }
-
-    /**
-     * Contador de usuarios con rol 'Cliente'
-     */
-    public function contarClientes()
-    {
-        $count = User::where('rol', 'Cliente')->count();
-        return response()->json([
-            'rol' => 'Cliente',
-            'cantidad' => $count,
-        ]);
-    }
+    } 
 }
 

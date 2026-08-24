@@ -16,8 +16,7 @@ class AuthController extends Controller
         ]);
         
         $user = User::where('correo', $request->correo)
-                    ->where('estado', 'Activo')
-                    ->where('rol', 'Administrador')
+                    ->whereIn('rol', ['Administrador', 'Empleado'])
                     ->first();
 
         if (!$user || !Hash::check($request->password, $user->password_hash)) {

@@ -179,21 +179,115 @@ class MovilSellController extends Controller
     /*
     * Mostrar ventas de un usuario específico, para el apartado movil "Mis Compras"
      */
-    public function show($id){
-        $ventas = Sell::where('Id_Usuario', $id)
-            ->with(['details.product', 'direction'])
-            ->orderBy('Fecha', 'desc')
+    public function show(Request $request)
+    {
+        $validated = $request->validate([
+            'fecha' => 'nullable|date_format:Y-m-d',
+            'fecha_desde' => 'nullable|date_format:Y-m-d',
+            'fecha_hasta' => 'nullable|date_format:Y-m-d|after_or_equal:fecha_desde',
+
+            'estado' => [
+                'nullable',
+                'in:Cancelado,Entregado,Pendiente,En Revision'
+            ],
+
+            'tipo_entrega' => [
+                'nullable',
+                'in:Envío a Domicilio,Recojo en Tienda'
+            ],
+
+            'comprobante' => [
+                'nullable',
+                'in:Boleta,Factura'
+            ],
+        ]);
+
+        $ventas = Sell::query()
+            ->where('Id_Usuario', $request->user()->id)
+            ->when(
+                $validated['fecha'] ?? null,
+                fn ($query, $fecha) => $query->whereDate('Fecha', $fecha)
+            )
+            ->when(
+                $validated['fecha_desde'] ?? null,
+                fn ($query, $fechaDesde) => $query->whereDate('Fecha', '>=', $fechaDesde)
+            )
+            ->when(
+                $validated['fecha_hasta'] ?? null,
+                fn ($query, $fechaHasta) => $query->whereDate('Fecha', '<=', $fechaHasta)
+            )
+            ->when(
+                $validated['estado'] ?? null,
+                fn ($query, $estado) => $query->where('estado', $estado)
+            )
+            ->when(
+                $validated['tipo_entrega'] ?? null,
+                fn ($query, $tipoEntrega) => $query->where('tipo_entrega', $tipoEntrega)
+            )
+            ->when(
+                $validated['comprobante'] ?? null,
+                fn ($query, $comprobante) => $query->where('Comprobante', $comprobante)
+            )
+            ->with([
+                'details.product',
+                'direction'
+            ])
+            ->orderByDesc('Fecha')
             ->get();
 
-        if (request()->has('estado')) {
-            $estado = request()->query('estado');
-            $ventas = $ventas->where('estado', $estado);
-        }
-
-        return response()->json($ventas);
+        return response()->json([
+            'success' => true,
+            'total' => $ventas->count(),
+            'data' => $ventas
+        ]);
     }
 
-    
+    /**
+     * Mostrar detalles de una venta específica de un usuario
+     */
+    public function detallesVenta(Request $request, $id)
+    {
+        $venta = Sell::select([
+                'Id',
+                'Id_Usuario',
+                'Metodo_Pago',
+                'Comprobante',
+                'Ruc',
+                'Id_Direccion',
+                'Fecha',
+                'Costo_Total',
+                'estado',
+                'tipo_entrega',
+                'voucher_url',
+                'qr_token',
+                'codigo_unico',
+                'serie',
+                'numero_comprobante',
+                'enlace_pdf',
+                'motivo_cancelacion',
+            ])
+            ->where('Id', $id)
+            ->where('Id_Usuario', $request->user()->id)
+            ->with([
+                'user:id,nombre,correo',
+                'details.product:id,nombre,descripcion,marca',
+                'direction:Id,ciudad,calle,referencia',
+            ])
+            ->first();
+
+        if (!$venta) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Venta no encontrada'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $venta
+        ], 200);
+    }
+
     /**
      * Validar entrega mediante QR
      */
@@ -222,6 +316,12 @@ class MovilSellController extends Controller
         if ($sell->estado === 'Cancelado') {
             return response()->json([
                 'message' => 'Esta venta fue cancelada y no puede ser entregada'
+            ], 400);
+        }
+
+        if ($sell->estado === 'En Revision') {
+            return response()->json([
+                'message' => 'Esta venta aún está en revisión y no puede ser entregada'
             ], 400);
         }
 

@@ -30,9 +30,6 @@ class AlertController extends Controller
             $query->where('severidad', $request->severidad);
         }
 
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
 
         /* =============================
         * Relaciones a cargar
